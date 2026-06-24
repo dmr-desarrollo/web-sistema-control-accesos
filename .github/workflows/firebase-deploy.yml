@@ -11,14 +11,16 @@ jobs:
     if: github.event.action != 'closed'
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: npm
-          cache-dependency-path: app/package-lock.json
-      - run: npm ci
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
         working-directory: app
-      - run: npm run build
+      - run: pnpm run build
         working-directory: app
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
@@ -33,14 +35,16 @@ jobs:
     if: github.event.action == 'closed' && github.event.pull_request.merged == true
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: npm
-          cache-dependency-path: app/package-lock.json
-      - run: npm ci
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
         working-directory: app
-      - run: npm run build
+      - run: pnpm run build
         working-directory: app
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
