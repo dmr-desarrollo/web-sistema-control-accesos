@@ -18,6 +18,7 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
+          cache-dependency-path: app/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
         working-directory: app
       - run: pnpm run build
@@ -42,6 +43,7 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
+          cache-dependency-path: app/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
         working-directory: app
       - run: pnpm run build
