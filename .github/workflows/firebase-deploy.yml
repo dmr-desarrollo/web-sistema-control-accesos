@@ -34,6 +34,7 @@ jobs:
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           projectId: sistema-control-visitas
           channelId: pr-${{ github.event.pull_request.number }}
+          entryPoint: app
 
   deploy:
     name: Firebase Production
@@ -59,3 +60,4 @@ jobs:
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           projectId: sistema-control-visitas
           channelId: live
+          entryPoint: app
