@@ -31,14 +31,7 @@ function Layout({ children }) {
               Dashboard
             </Link>
           </li>
-          <li>
-            <Link 
-              to="/visitables" 
-              className={isActive('/visitables') ? 'active' : ''}
-            >
-              Personas Visitables
-            </Link>
-          </li>
+
           <li>
             <Link 
               to="/visitas" 
