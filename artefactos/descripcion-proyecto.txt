@@ -1,0 +1,20 @@
+Proyecto Sistema de control de accesos
+
+Se trata de un sistema que registra las visitas a una empresa, fábrica o institución. 
+
+Este sistema estará compuesto por 2 accesos: un acceso móvil, compuesto por una aplicación de Android que se ejecutará en una tablet. Esta tablet tendrá conectado un lector OCR programable que se utilizará para capturar los datos del documento de identidad de una persona y registrarlo como un visitante. 
+
+Los datos que capturará el lector OCR del documento de identidad del visitante serían los siguientes:
+
+- Nombre
+- Apellido
+- Número de cédula
+- Fecha de nacimiento
+
+Al escanear el OCR del documento de identidad del visitante, se guardará la fecha y hora de visita. 
+
+Esta aplicación móvil será utilizada por el portero de la empresa o fábrica para registrar la identidad del visitante. 
+
+El segundo acceso al sistema estará compuesto por una app web a la que podrá acceder un usuario administrador. Mediante esta app web, el usuario administrador podrá cargar al sistema las personas visitables en la empresa
+
+Cada persona visitable tendrá un nombre y un apellido

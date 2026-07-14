@@ -1,0 +1,22 @@
+REQUERIMIENTOS FUNCIONALES - Sistema de Control de Accesos
+==========================================================
+
+APP MÓVIL (Tablet - Modo Kiosco)
+--------------------------------
+
+RF-001: Registrar visita
+
+APP WEB (Administrador)
+-----------------------
+
+RF-002: Iniciar sesión (autenticación)
+RF-003: Gestionar personas visitables (Crear, Leer, Actualizar, Eliminar)
+RF-004: Ver detalle de una visita específica 
+
+REGLAS DE NEGOCIO
+-----------------
+
+RN-001: Un visitante se identifica por número de cédula (único)
+RN-002: La fecha y hora de visita se registran automáticamente del sistema
+RN-003: El portero no requiere autenticación (kiosco)
+RN-004: Solo hay usuarios administradores en la web
