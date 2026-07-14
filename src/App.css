@@ -1,0 +1,311 @@
+:root {
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --danger: #dc2626;
+  --success: #16a34a;
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --text: #1e293b;
+  --text-muted: #64748b;
+  --border: #e2e8f0;
+  --shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* Login */
+.login-container {
+  max-width: 400px;
+  margin: 100px auto;
+  padding: 32px;
+  background: var(--surface);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+
+.login-container h1 {
+  text-align: center;
+  margin-bottom: 8px;
+  color: var(--primary);
+  font-size: 2.5rem;
+}
+
+.login-container h2 {
+  text-align: center;
+  margin-bottom: 24px;
+  color: var(--text-muted);
+  font-weight: normal;
+}
+
+.login-container form div {
+  margin-bottom: 16px;
+}
+
+.login-container label {
+  display: block;
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+
+.login-container input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.login-container input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.login-container button {
+  width: 100%;
+  padding: 12px;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.login-container button:hover:not(:disabled) {
+  background: var(--primary-hover);
+}
+
+.login-container button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.error {
+  background: #fef2f2;
+  color: var(--danger);
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+}
+
+/* Layout */
+.layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.navbar {
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  height: 64px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+
+.navbar-brand a {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--primary);
+  text-decoration: none;
+}
+
+.navbar-menu {
+  display: flex;
+  list-style: none;
+  gap: 8px;
+  margin-left: 32px;
+}
+
+.navbar-menu a {
+  padding: 8px 16px;
+  text-decoration: none;
+  color: var(--text-muted);
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.navbar-menu a:hover,
+.navbar-menu a.active {
+  background: var(--bg);
+  color: var(--primary);
+}
+
+.navbar-user {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.navbar-user span {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.navbar-user button {
+  padding: 8px 16px;
+  background: transparent;
+  color: var(--danger);
+  border: 1px solid var(--danger);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.navbar-user button:hover {
+  background: #fef2f2;
+}
+
+.main-content {
+  flex: 1;
+  padding: 32px;
+}
+
+/* Dashboard */
+.dashboard h1 {
+  margin-bottom: 16px;
+}
+
+.dashboard p {
+  color: var(--text-muted);
+}
+
+/* Visitables */
+.visitables-page h1 {
+  margin-bottom: 24px;
+}
+
+.visitables-page > button {
+  padding: 10px 20px;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-bottom: 24px;
+}
+
+.visitables-page > button:hover {
+  background: var(--primary-hover);
+}
+
+.formulario-visitable {
+  max-width: 400px;
+  padding: 24px;
+  background: var(--surface);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+
+.formulario-visitable h2 {
+  margin-bottom: 20px;
+}
+
+.formulario-visitable div {
+  margin-bottom: 16px;
+}
+
+.formulario-visitable label {
+  display: block;
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+
+.formulario-visitable input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.botones {
+  display: flex;
+  gap: 12px;
+}
+
+.botones button {
+  flex: 1;
+  padding: 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.botones button[type="submit"] {
+  background: var(--primary);
+  color: white;
+  border: none;
+}
+
+.botones button[type="button"] {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+
+.lista-visitables h2 {
+  margin-bottom: 16px;
+}
+
+table {
+  width: 100%;
+  background: var(--surface);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+th, td {
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+th {
+  background: var(--bg);
+  font-weight: 600;
+}
+
+button {
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+button:first-child {
+  background: var(--primary);
+  color: white;
+  border: none;
+  margin-right: 8px;
+}
+
+button:last-child {
+  background: transparent;
+  color: var(--danger);
+  border: 1px solid var(--danger);
+}
+
+/* Visitas */
+.visitas-page h1 {
+  margin-bottom: 24px;
+}
+
+.historial-visitas h2 {
+  margin-bottom: 16px;
+}

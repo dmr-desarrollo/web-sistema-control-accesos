@@ -1,0 +1,6 @@
+allowBuilds:
+  esbuild: true
+  cypress: true
+  "@firebase/util": true
+  protobufjs: true
+  re2: true
