@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { obtenerVisitas } from '../../services/visitas';
+import { utils, writeFileXLSX } from 'xlsx';
 
 function HistorialVisitas() {
   const [visitas, setVisitas] = useState([]);
@@ -13,19 +14,49 @@ function HistorialVisitas() {
   const cargarVisitas = async () => {
     try {
       setCargando(true);
+      setError(null);
+
       const data = await obtenerVisitas();
       setVisitas(data);
     } catch (err) {
-      setError(err.message);
+      console.error(
+        'Error cargando historial:',
+        err
+      );
+
+      setError(
+        err.message ||
+          'No fue posible cargar el historial'
+      );
     } finally {
       setCargando(false);
     }
   };
 
   const formatearFecha = (fecha) => {
-    if (!fecha) return '';
-    if (fecha.seconds) return new Date(fecha.seconds * 1000).toLocaleString();
-    return new Date(fecha).toLocaleString();
+    if (!fecha) {
+      return '';
+    }
+
+    if (typeof fecha.toDate === 'function') {
+      return fecha
+        .toDate()
+        .toLocaleString('es-UY');
+    }
+
+    if (fecha.seconds) {
+      return new Date(
+        fecha.seconds * 1000
+      ).toLocaleString('es-UY');
+    }
+
+    const resultado = new Date(fecha);
+
+    if (Number.isNaN(resultado.getTime())) {
+      return '';
+    }
+
+    return resultado.toLocaleString('es-UY');
   };
 
   const exportarXLS = () => {
@@ -34,95 +65,142 @@ function HistorialVisitas() {
       return;
     }
 
-    let tabla = `
-      <html>
-      <head>
-        <meta charset="UTF-8" />
-      </head>
-      <body>
-        <table border="1">
-          <thead>
-            <tr style="background-color:#D9EAF7;font-weight:bold;">
-              <th>Fecha</th>
-              <th>Visitante</th>
-              <th>Cédula</th>
-              <th>Empresa</th>
-              <th>Persona visitada</th>
-            </tr>
-          </thead>
-          <tbody>
-    `;
+    const datosExcel = visitas.map(
+      (visita) => ({
+        Fecha: formatearFecha(
+          visita.fecha
+        ),
 
-    visitas.forEach((visita) => {
-      tabla += `
-        <tr>
-          <td>${formatearFecha(visita.fecha)}</td>
-          <td>${visita.visitanteNombre || ''} ${visita.visitanteApellido || ''}</td>
-          <td>${visita.visitanteCedula || ''}</td>
-          <td>${visita.empresa || ''}</td>
-          <td>${visita.personaVisitableNombre || ''}</td>
-        </tr>
-      `;
-    });
+        Visitante: `${
+          visita.visitanteNombre || ''
+        } ${
+          visita.visitanteApellido || ''
+        }`.trim(),
 
-    tabla += `
-          </tbody>
-        </table>
-      </body>
-      </html>
-    `;
+        Cédula:
+          visita.visitanteCedula || '',
 
-    const blob = new Blob([tabla], {
-      type: 'application/vnd.ms-excel;charset=utf-8;'
-    });
+        Empresa:
+          visita.empresa || '',
 
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    const fecha = new Date().toISOString().slice(0, 10);
+        'Persona visitada':
+          visita.personaVisitableNombre ||
+          ''
+      })
+    );
 
-    link.href = url;
-    link.download = `historial_visitas_${fecha}.xls`;
-    link.click();
+    const hoja =
+      utils.json_to_sheet(datosExcel);
 
-    URL.revokeObjectURL(url);
+    hoja['!cols'] = [
+      { wch: 22 },
+      { wch: 35 },
+      { wch: 18 },
+      { wch: 25 },
+      { wch: 35 }
+    ];
+
+    hoja['!autofilter'] = {
+      ref: `A1:E${datosExcel.length + 1}`
+    };
+
+    const libro = utils.book_new();
+
+    utils.book_append_sheet(
+      libro,
+      hoja,
+      'Historial'
+    );
+
+    const fechaArchivo = new Date()
+      .toISOString()
+      .slice(0, 10);
+
+    writeFileXLSX(
+      libro,
+      `historial_visitas_${fechaArchivo}.xlsx`
+    );
   };
 
-  if (cargando) return <div>Cargando...</div>;
-  if (error) return <div>Error: {error}</div>;
+  if (cargando) {
+    return (
+      <div className="dashboard-estado">
+        Cargando historial...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="dashboard-estado dashboard-error">
+        Error: {error}
+      </div>
+    );
+  }
 
   return (
     <div className="historial-visitas">
-      <h2>Historial de Visitas</h2>
+      <div className="historial-cabecera">
+        <h1>Historial de visitas</h1>
 
-      <button onClick={exportarXLS}>
-        Exportar historial XLS
-      </button>
+        <button
+          type="button"
+          className="boton-exportar"
+          onClick={exportarXLS}
+        >
+          Exportar XLSX
+        </button>
+      </div>
 
       {visitas.length === 0 ? (
         <p>No hay visitas registradas</p>
       ) : (
-        <table>
-          <thead>
-            <tr>
-              <th>Fecha</th>
-              <th>Visitante</th>
-              <th>Cédula</th>
-              <th>Empresa</th>
-              <th>Persona Visitable</th>
-            </tr>
-          </thead>
-          <tbody>
-            {visitas.map((visita) => (
-              <tr key={visita.id}>
-                <td>{formatearFecha(visita.fecha)}</td>
-                <td>{visita.visitanteNombre} {visita.visitanteApellido}</td>
-                <td>{visita.visitanteCedula}</td>
-                <td>{visita.empresa || ''}</td>
-                <td>{visita.personaVisitableNombre}</td>
+        <div className="tabla-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Visitante</th>
+                <th>Cédula</th>
+                <th>Empresa</th>
+                <th>Persona visitada</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+
+            <tbody>
+              {visitas.map((visita) => (
+                <tr key={visita.id}>
+                  <td>
+                    {formatearFecha(
+                      visita.fecha
+                    )}
+                  </td>
+
+                  <td>
+                    {visita.visitanteNombre}{' '}
+                    {
+                      visita.visitanteApellido
+                    }
+                  </td>
+
+                  <td>
+                    {visita.visitanteCedula}
+                  </td>
+
+                  <td>
+                    {visita.empresa || ''}
+                  </td>
+
+                  <td>
+                    {
+                      visita.personaVisitableNombre
+                    }
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );
