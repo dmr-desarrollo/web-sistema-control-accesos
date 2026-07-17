@@ -1,11 +1,74 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /personasVisitable/{docId} {
-      allow read, write: if request.auth != null;
+
+    function estaAutenticado() {
+      return request.auth != null;
     }
+
+    function perfilActual() {
+      return get(
+        /databases/$(database)/documents/usuarios/$(request.auth.uid)
+      ).data;
+    }
+
+    function usuarioActivo() {
+      return estaAutenticado()
+        && perfilActual().estado == 'activo';
+    }
+
+    function esSuperadmin() {
+      return usuarioActivo()
+        && perfilActual().rol == 'superadmin';
+    }
+
+    function perteneceAEmpresa(empresaId) {
+      return usuarioActivo()
+        && perfilActual().empresaId == empresaId;
+    }
+
+    match /usuarios/{usuarioId} {
+      allow get: if estaAutenticado()
+        && (
+          request.auth.uid == usuarioId
+          || esSuperadmin()
+        );
+
+      allow list: if esSuperadmin();
+
+      allow create, update, delete: if false;
+    }
+
+    match /empresas/{empresaId} {
+      allow read: if esSuperadmin()
+        || perteneceAEmpresa(empresaId);
+
+      allow create, update, delete: if esSuperadmin();
+
+      match /configuracion/{documentoId} {
+        allow read: if esSuperadmin()
+          || perteneceAEmpresa(empresaId);
+
+        allow write: if esSuperadmin();
+      }
+    }
+
+    /*
+     * Estas reglas se mantienen temporalmente
+     * para no romper la aplicación existente.
+     * Más adelante se filtrarán por empresaId.
+     */
+    match /personasVisitable/{docId} {
+      allow read, write: if estaAutenticado();
+    }
+
     match /visitas/{docId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if estaAutenticado();
+    }
+
+    match /lecturasOCR/{docId} {
+      allow read, write: if estaAutenticado();
     }
   }
 }
