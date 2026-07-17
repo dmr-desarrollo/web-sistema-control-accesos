@@ -11,6 +11,7 @@ import VisitablesPage from './pages/VisitablesPage';
 import VisitasPage from './pages/VisitasPage';
 import AdminPage from './pages/AdminPage';
 import PendingApprovalPage from './pages/PendingApprovalPage';
+import EmpresasPage from './pages/admin/EmpresasPage';
 
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import Layout from './components/layout/Layout';
@@ -47,6 +48,17 @@ function App() {
         />
 
         <Route
+          path="/admin/empresas"
+          element={
+            <ProtectedRoute
+              allowedRoles={['superadmin']}
+            >
+              <EmpresasPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
           path="/dashboard"
           element={
             <ProtectedRoute
@@ -66,9 +78,7 @@ function App() {
           path="/visitables"
           element={
             <ProtectedRoute
-              allowedRoles={[
-                'admin_empresa'
-              ]}
+              allowedRoles={['admin_empresa']}
             >
               <Layout>
                 <VisitablesPage />

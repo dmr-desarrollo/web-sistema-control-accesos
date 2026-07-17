@@ -9,6 +9,7 @@ function AdminPage() {
 
   const cerrarSesion = async () => {
     await logout();
+
     navigate('/login', {
       replace: true
     });
@@ -42,9 +43,7 @@ function AdminPage() {
           type="button"
           className="admin-tarjeta"
           onClick={() =>
-            alert(
-              'El módulo Empresas se construirá en la siguiente etapa.'
-            )
+            navigate('/admin/empresas')
           }
         >
           <strong>Empresas</strong>
@@ -59,7 +58,7 @@ function AdminPage() {
           className="admin-tarjeta"
           onClick={() =>
             alert(
-              'El módulo Usuarios se construirá en la siguiente etapa.'
+              'El módulo Usuarios se construirá después del módulo Empresas.'
             )
           }
         >
