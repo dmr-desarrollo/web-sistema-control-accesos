@@ -280,15 +280,15 @@ function EmpresasPage() {
                 </button>
 
                 <button
-                  type="button"
-                  onClick={() =>
-                    alert(
-                      `La administración de usuarios de ${empresa.nombre} se agregará en el módulo Usuarios.`
-                    )
-                  }
-                >
-                  Usuarios
-                </button>
+  type="button"
+  onClick={() =>
+    navigate(
+      `/admin/usuarios?empresa=${empresa.id}`
+    )
+  }
+>
+  Usuarios
+</button>
               </div>
             </article>
           ))}

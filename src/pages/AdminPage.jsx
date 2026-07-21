@@ -53,15 +53,13 @@ function AdminPage() {
           </span>
         </button>
 
-        <button
-          type="button"
-          className="admin-tarjeta"
-          onClick={() =>
-            alert(
-              'El módulo Usuarios se construirá después del módulo Empresas.'
-            )
-          }
-        >
+      <button
+  type="button"
+  className="admin-tarjeta"
+  onClick={() =>
+    navigate('/admin/usuarios')
+  }
+>
           <strong>Usuarios</strong>
 
           <span>
