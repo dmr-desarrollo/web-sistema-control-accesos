@@ -9,14 +9,15 @@ import {
   useSearchParams
 } from 'react-router-dom';
 
+import PasswordModal from '../../components/usuarios/PasswordModal';
 import UsuarioModal from '../../components/usuarios/UsuarioModal';
 import UsuarioTable from '../../components/usuarios/UsuarioTable';
 
 import {
-  crearUsuarioAdministrado,
   actualizarUsuario,
   cambiarEstadoUsuario,
   cambiarPasswordTemporal,
+  crearUsuarioAdministrado,
   listarUsuarios,
   obtenerEmpresasActivas
 } from '../../services/usuarios';
@@ -68,8 +69,35 @@ function UsuariosPage() {
   const [mensaje, setMensaje] =
     useState('');
 
+    const [busqueda, setBusqueda] =
+      useState('');
+
+    const [filtroEmpresa, setFiltroEmpresa] =
+      useState('');
+
+    const [filtroRol, setFiltroRol] =
+      useState('');
+
+    const [filtroEstado, setFiltroEstado] =
+      useState('');
+
   const [usuarioProcesando, setUsuarioProcesando] =
     useState(null);
+
+  const [
+    mostrarPasswordModal,
+    setMostrarPasswordModal
+  ] = useState(false);
+
+  const [
+    usuarioPassword,
+    setUsuarioPassword
+  ] = useState(null);
+
+  const [
+    errorPassword,
+    setErrorPassword
+  ] = useState('');
 
   useEffect(() => {
     cargarDatos();
@@ -91,20 +119,67 @@ function UsuariosPage() {
     empresaSeleccionada
   ]);
 
-  const usuariosFiltrados = useMemo(() => {
-    if (!empresaSeleccionada) {
-      return usuarios;
-    }
+const usuariosFiltrados = useMemo(() => {
+  const textoBusqueda =
+    busqueda
+      .trim()
+      .toLowerCase();
 
-    return usuarios.filter(
-      (usuario) =>
-        usuario.empresaId ===
-        empresaSeleccionada
+  return usuarios.filter((usuario) => {
+    const nombreCompleto = [
+      usuario.nombre,
+      usuario.apellido
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+
+    const email =
+      String(usuario.email || '')
+        .toLowerCase();
+
+    const coincideBusqueda =
+      !textoBusqueda ||
+      nombreCompleto.includes(
+        textoBusqueda
+      ) ||
+      email.includes(
+        textoBusqueda
+      );
+
+    const empresaFiltroFinal =
+      empresaSeleccionada ||
+      filtroEmpresa;
+
+    const coincideEmpresa =
+      !empresaFiltroFinal ||
+      usuario.empresaId ===
+        empresaFiltroFinal;
+
+    const coincideRol =
+      !filtroRol ||
+      usuario.rol === filtroRol;
+
+    const coincideEstado =
+      !filtroEstado ||
+      usuario.estado ===
+        filtroEstado;
+
+    return (
+      coincideBusqueda &&
+      coincideEmpresa &&
+      coincideRol &&
+      coincideEstado
     );
-  }, [
-    usuarios,
-    empresaSeleccionada
-  ]);
+  });
+}, [
+  usuarios,
+  busqueda,
+  empresaSeleccionada,
+  filtroEmpresa,
+  filtroRol,
+  filtroEstado
+]);
 
   const cargarDatos = async () => {
     try {
@@ -137,7 +212,10 @@ function UsuariosPage() {
   };
 
   const actualizarCampo = (event) => {
-    const { name, value } = event.target;
+    const {
+      name,
+      value
+    } = event.target;
 
     setFormulario((estadoAnterior) => ({
       ...estadoAnterior,
@@ -161,9 +239,11 @@ function UsuariosPage() {
   const abrirFormularioEditar = (usuario) => {
     if (usuario.rol === 'superadmin') {
       setMensaje('');
+
       setErrorCarga(
         'El administrador global no puede editarse desde este módulo.'
       );
+
       return;
     }
 
@@ -217,6 +297,7 @@ function UsuariosPage() {
       setErrorFormulario(
         'Debes ingresar el nombre.'
       );
+
       return;
     }
 
@@ -224,6 +305,7 @@ function UsuariosPage() {
       setErrorFormulario(
         'Debes ingresar el correo electrónico.'
       );
+
       return;
     }
 
@@ -234,6 +316,7 @@ function UsuariosPage() {
       setErrorFormulario(
         'La contraseña temporal debe tener al menos 6 caracteres.'
       );
+
       return;
     }
 
@@ -241,6 +324,7 @@ function UsuariosPage() {
       setErrorFormulario(
         'Debes seleccionar una empresa.'
       );
+
       return;
     }
 
@@ -253,7 +337,8 @@ function UsuariosPage() {
           nombre,
           apellido,
           email,
-          empresaId: formulario.empresaId,
+          empresaId:
+            formulario.empresaId,
           rol: formulario.rol
         });
       } else {
@@ -261,8 +346,10 @@ function UsuariosPage() {
           nombre,
           apellido,
           email,
-          password: formulario.password,
-          empresaId: formulario.empresaId,
+          password:
+            formulario.password,
+          empresaId:
+            formulario.empresaId,
           rol: formulario.rol
         });
       }
@@ -270,11 +357,15 @@ function UsuariosPage() {
       const usuariosActualizados =
         await listarUsuarios();
 
-      setUsuarios(usuariosActualizados);
+      setUsuarios(
+        usuariosActualizados
+      );
 
       setMostrarFormulario(false);
       setModoFormulario('crear');
-      setFormulario(FORMULARIO_INICIAL);
+      setFormulario(
+        FORMULARIO_INICIAL
+      );
 
       setMensaje(
         modoFormulario === 'editar'
@@ -302,8 +393,9 @@ function UsuariosPage() {
     }
   };
 
-
- const cambiarEstado = async (usuario) => {
+  const cambiarEstado = async (
+    usuario
+  ) => {
     const estaActivo =
       usuario.estado === 'activo';
 
@@ -324,17 +416,21 @@ function UsuariosPage() {
       .filter(Boolean)
       .join(' ');
 
-    const confirmado = window.confirm(
-      `¿Deseas ${accion} al usuario ` +
-      `${nombreCompleto || usuario.email}?`
-    );
+    const confirmado =
+      window.confirm(
+        `¿Deseas ${accion} al usuario ` +
+        `${nombreCompleto || usuario.email}?`
+      );
 
     if (!confirmado) {
       return;
     }
 
     try {
-      setUsuarioProcesando(usuario.uid);
+      setUsuarioProcesando(
+        usuario.uid
+      );
+
       setErrorCarga('');
       setMensaje('');
 
@@ -346,7 +442,9 @@ function UsuariosPage() {
       const usuariosActualizados =
         await listarUsuarios();
 
-      setUsuarios(usuariosActualizados);
+      setUsuarios(
+        usuariosActualizados
+      );
 
       setMensaje(
         nuevoEstado === 'activo'
@@ -368,55 +466,115 @@ function UsuariosPage() {
     }
   };
 
-
-const cambiarPassword = async (usuario) => {
-  const nuevaPassword = window.prompt(
-    `Nueva contraseña temporal para ${usuario.nombre} ${usuario.apellido}:`
-  );
-
-  if (!nuevaPassword) {
-    return;
-  }
-
-  if (nuevaPassword.length < 6) {
-    setErrorCarga(
-      'La contraseña debe tener al menos 6 caracteres.'
+  const abrirPasswordModal = (
+    usuario
+  ) => {
+    setUsuarioPassword(
+      usuario
     );
-    return;
-  }
 
-  try {
-    setUsuarioProcesando(usuario.uid);
-    setErrorCarga('');
+    setErrorPassword('');
     setMensaje('');
 
-    await cambiarPasswordTemporal({
-      uid: usuario.uid,
-      password: nuevaPassword
-    });
-
-    setMensaje(
-      'La contraseña fue actualizada correctamente.'
+    setMostrarPasswordModal(
+      true
     );
-  } catch (error) {
-    console.error(
-      'Error cambiando contraseña:',
-      error
+  };
+
+  const cerrarPasswordModal = () => {
+    if (usuarioProcesando) {
+      return;
+    }
+
+    setMostrarPasswordModal(
+      false
     );
 
-    setErrorCarga(
-      error.message ||
-      'No fue posible cambiar la contraseña.'
-    );
-  } finally {
-    setUsuarioProcesando(null);
-  }
-};
+    setUsuarioPassword(null);
+    setErrorPassword('');
+  };
 
+  const guardarPassword = async ({
+    password,
+    confirmacion
+  }) => {
+    setErrorPassword('');
+    setMensaje('');
+
+    if (!password) {
+      setErrorPassword(
+        'Debes ingresar una contraseña.'
+      );
+
+      return;
+    }
+
+    if (password.length < 6) {
+      setErrorPassword(
+        'La contraseña debe tener al menos 6 caracteres.'
+      );
+
+      return;
+    }
+
+    if (
+      password !== confirmacion
+    ) {
+      setErrorPassword(
+        'Las contraseñas no coinciden.'
+      );
+
+      return;
+    }
+
+    if (!usuarioPassword?.uid) {
+      setErrorPassword(
+        'No se pudo identificar al usuario seleccionado.'
+      );
+
+      return;
+    }
+
+    try {
+      setUsuarioProcesando(
+        usuarioPassword.uid
+      );
+
+      await cambiarPasswordTemporal({
+        uid: usuarioPassword.uid,
+        password
+      });
+
+      setMostrarPasswordModal(
+        false
+      );
+
+      setUsuarioPassword(null);
+
+      setMensaje(
+        'La contraseña fue actualizada correctamente.'
+      );
+    } catch (error) {
+      console.error(
+        'Error cambiando contraseña:',
+        error
+      );
+
+      setErrorPassword(
+        error.message ||
+          'No fue posible cambiar la contraseña.'
+      );
+    } finally {
+      setUsuarioProcesando(null);
+    }
+  };
 
   const volver = () => {
     if (empresaSeleccionada) {
-      navigate('/admin/empresas');
+      navigate(
+        '/admin/empresas'
+      );
+
       return;
     }
 
@@ -455,12 +613,140 @@ const cambiarPassword = async (usuario) => {
         <button
           type="button"
           className="boton-nueva-empresa"
-          onClick={abrirFormularioCrear}
+          onClick={
+            abrirFormularioCrear
+          }
           disabled={cargando}
         >
           Nuevo usuario
         </button>
       </header>
+
+
+<section className="admin-filtros">
+  <div className="campo-formulario">
+    <label htmlFor="buscar-usuario">
+      Buscar
+    </label>
+
+    <input
+      id="buscar-usuario"
+      type="search"
+      placeholder="Nombre o correo"
+      value={busqueda}
+      onChange={(event) =>
+        setBusqueda(
+          event.target.value
+        )
+      }
+    />
+  </div>
+
+  {!empresaSeleccionada && (
+    <div className="campo-formulario">
+      <label htmlFor="filtro-empresa">
+        Empresa
+      </label>
+
+      <select
+        id="filtro-empresa"
+        value={filtroEmpresa}
+        onChange={(event) =>
+          setFiltroEmpresa(
+            event.target.value
+          )
+        }
+      >
+        <option value="">
+          Todas
+        </option>
+
+        {empresas.map((empresa) => (
+          <option
+            key={empresa.id}
+            value={empresa.id}
+          >
+            {empresa.nombre ||
+              empresa.id}
+          </option>
+        ))}
+      </select>
+    </div>
+  )}
+
+  <div className="campo-formulario">
+    <label htmlFor="filtro-rol">
+      Rol
+    </label>
+
+    <select
+      id="filtro-rol"
+      value={filtroRol}
+      onChange={(event) =>
+        setFiltroRol(
+          event.target.value
+        )
+      }
+    >
+      <option value="">
+        Todos
+      </option>
+
+      <option value="superadmin">
+        Administrador global
+      </option>
+
+      <option value="admin_empresa">
+        Administrador de empresa
+      </option>
+
+      <option value="operador">
+        Operador
+      </option>
+    </select>
+  </div>
+
+  <div className="campo-formulario">
+    <label htmlFor="filtro-estado">
+      Estado
+    </label>
+
+    <select
+      id="filtro-estado"
+      value={filtroEstado}
+      onChange={(event) =>
+        setFiltroEstado(
+          event.target.value
+        )
+      }
+    >
+      <option value="">
+        Todos
+      </option>
+
+      <option value="activo">
+        Activo
+      </option>
+
+      <option value="inactivo">
+        Inactivo
+      </option>
+    </select>
+  </div>
+
+  <div className="admin-contador">
+    <strong>
+      {usuariosFiltrados.length}
+    </strong>
+
+    {' '}
+
+    {usuariosFiltrados.length === 1
+      ? 'usuario'
+      : 'usuarios'}
+  </div>
+</section>
+
 
       {mensaje && (
         <div className="mensaje-exito">
@@ -480,28 +766,73 @@ const cambiarPassword = async (usuario) => {
         </div>
       ) : (
         <UsuarioTable
-          usuarios={usuariosFiltrados}
+          usuarios={
+            usuariosFiltrados
+          }
           empresas={empresas}
-          onEditar={abrirFormularioEditar}
-          onCambiarEstado={cambiarEstado}
-          onCambiarPassword={cambiarPassword}
-          usuarioProcesando={usuarioProcesando}
+          onEditar={
+            abrirFormularioEditar
+          }
+          onCambiarEstado={
+            cambiarEstado
+          }
+          onCambiarPassword={
+            abrirPasswordModal
+          }
+          usuarioProcesando={
+            usuarioProcesando
+          }
         />
       )}
 
       <UsuarioModal
-        visible={mostrarFormulario}
+        visible={
+          mostrarFormulario
+        }
         modo={modoFormulario}
         formulario={formulario}
         empresas={empresas}
         guardando={guardando}
         empresaBloqueada={
-          Boolean(empresaSeleccionada)
+          Boolean(
+            empresaSeleccionada
+          )
         }
-        error={errorFormulario}
-        onChange={actualizarCampo}
-        onSubmit={guardarUsuario}
-        onCerrar={cerrarFormulario}
+        error={
+          errorFormulario
+        }
+        onChange={
+          actualizarCampo
+        }
+        onSubmit={
+          guardarUsuario
+        }
+        onCerrar={
+          cerrarFormulario
+        }
+      />
+
+      <PasswordModal
+        visible={
+          mostrarPasswordModal
+        }
+        usuario={
+          usuarioPassword
+        }
+        guardando={
+          Boolean(
+            usuarioProcesando
+          )
+        }
+        error={
+          errorPassword
+        }
+        onSubmit={
+          guardarPassword
+        }
+        onCerrar={
+          cerrarPasswordModal
+        }
       />
     </div>
   );
