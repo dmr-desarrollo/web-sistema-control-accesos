@@ -9,6 +9,7 @@ import {
   useSearchParams
 } from 'react-router-dom';
 
+import ConfirmacionModal from '../../components/usuarios/ConfirmacionModal';
 import PasswordModal from '../../components/usuarios/PasswordModal';
 import UsuarioModal from '../../components/usuarios/UsuarioModal';
 import UsuarioTable from '../../components/usuarios/UsuarioTable';
@@ -69,20 +70,30 @@ function UsuariosPage() {
   const [mensaje, setMensaje] =
     useState('');
 
-    const [busqueda, setBusqueda] =
-      useState('');
+  const [busqueda, setBusqueda] =
+    useState('');
 
-    const [filtroEmpresa, setFiltroEmpresa] =
-      useState('');
+  const [filtroEmpresa, setFiltroEmpresa] =
+    useState('');
 
-    const [filtroRol, setFiltroRol] =
-      useState('');
+  const [filtroRol, setFiltroRol] =
+    useState('');
 
-    const [filtroEstado, setFiltroEstado] =
-      useState('');
+  const [filtroEstado, setFiltroEstado] =
+    useState('');
 
   const [usuarioProcesando, setUsuarioProcesando] =
     useState(null);
+
+  const [
+    usuarioConfirmacion,
+    setUsuarioConfirmacion
+  ] = useState(null);
+
+  const [
+    mostrarConfirmacion,
+    setMostrarConfirmacion
+  ] = useState(false);
 
   const [
     mostrarPasswordModal,
@@ -119,67 +130,66 @@ function UsuariosPage() {
     empresaSeleccionada
   ]);
 
-const usuariosFiltrados = useMemo(() => {
-  const textoBusqueda =
-    busqueda
-      .trim()
-      .toLowerCase();
-
-  return usuarios.filter((usuario) => {
-    const nombreCompleto = [
-      usuario.nombre,
-      usuario.apellido
-    ]
-      .filter(Boolean)
-      .join(' ')
-      .toLowerCase();
-
-    const email =
-      String(usuario.email || '')
+  const usuariosFiltrados = useMemo(() => {
+    const textoBusqueda =
+      busqueda
+        .trim()
         .toLowerCase();
 
-    const coincideBusqueda =
-      !textoBusqueda ||
-      nombreCompleto.includes(
-        textoBusqueda
-      ) ||
-      email.includes(
-        textoBusqueda
+    return usuarios.filter((usuario) => {
+      const nombreCompleto = [
+        usuario.nombre,
+        usuario.apellido
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+
+      const email =
+        String(usuario.email || '')
+          .toLowerCase();
+
+      const coincideBusqueda =
+        !textoBusqueda ||
+        nombreCompleto.includes(
+          textoBusqueda
+        ) ||
+        email.includes(
+          textoBusqueda
+        );
+
+      const empresaFiltroFinal =
+        empresaSeleccionada ||
+        filtroEmpresa;
+
+      const coincideEmpresa =
+        !empresaFiltroFinal ||
+        usuario.empresaId ===
+          empresaFiltroFinal;
+
+      const coincideRol =
+        !filtroRol ||
+        usuario.rol === filtroRol;
+
+      const coincideEstado =
+        !filtroEstado ||
+        usuario.estado === filtroEstado;
+
+      return (
+        coincideBusqueda &&
+        coincideEmpresa &&
+        coincideRol &&
+        coincideEstado
       );
-
-    const empresaFiltroFinal =
-      empresaSeleccionada ||
-      filtroEmpresa;
-
-    const coincideEmpresa =
-      !empresaFiltroFinal ||
-      usuario.empresaId ===
-        empresaFiltroFinal;
-
-    const coincideRol =
-      !filtroRol ||
-      usuario.rol === filtroRol;
-
-    const coincideEstado =
-      !filtroEstado ||
-      usuario.estado ===
-        filtroEstado;
-
-    return (
-      coincideBusqueda &&
-      coincideEmpresa &&
-      coincideRol &&
-      coincideEstado
-    );
-  });
-}, [
-  usuarios,
-  busqueda,
-  empresaSeleccionada,
-  filtroEmpresa,
-  filtroRol,
-  filtroEstado
-]);
+    });
+  }, [
+    usuarios,
+    busqueda,
+    empresaSeleccionada,
+    filtroEmpresa,
+    filtroRol,
+    filtroEstado
+  ]);
 
   const cargarDatos = async () => {
     try {
@@ -232,6 +242,7 @@ const usuariosFiltrados = useMemo(() => {
     });
 
     setErrorFormulario('');
+    setErrorCarga('');
     setMensaje('');
     setMostrarFormulario(true);
   };
@@ -337,8 +348,7 @@ const usuariosFiltrados = useMemo(() => {
           nombre,
           apellido,
           email,
-          empresaId:
-            formulario.empresaId,
+          empresaId: formulario.empresaId,
           rol: formulario.rol
         });
       } else {
@@ -346,10 +356,8 @@ const usuariosFiltrados = useMemo(() => {
           nombre,
           apellido,
           email,
-          password:
-            formulario.password,
-          empresaId:
-            formulario.empresaId,
+          password: formulario.password,
+          empresaId: formulario.empresaId,
           rol: formulario.rol
         });
       }
@@ -393,49 +401,51 @@ const usuariosFiltrados = useMemo(() => {
     }
   };
 
-  const cambiarEstado = async (
-    usuario
-  ) => {
+  const abrirConfirmacionEstado = (usuario) => {
+    setUsuarioConfirmacion(usuario);
+    setMensaje('');
+    setErrorCarga('');
+    setMostrarConfirmacion(true);
+  };
+
+  const cerrarConfirmacionEstado = () => {
+    if (usuarioProcesando) {
+      return;
+    }
+
+    setMostrarConfirmacion(false);
+    setUsuarioConfirmacion(null);
+  };
+
+  const confirmarCambioEstado = async () => {
+    if (!usuarioConfirmacion?.uid) {
+      setMostrarConfirmacion(false);
+
+      setErrorCarga(
+        'No se pudo identificar al usuario seleccionado.'
+      );
+
+      return;
+    }
+
     const estaActivo =
-      usuario.estado === 'activo';
+      usuarioConfirmacion.estado === 'activo';
 
     const nuevoEstado =
       estaActivo
         ? 'inactivo'
         : 'activo';
 
-    const accion =
-      estaActivo
-        ? 'desactivar'
-        : 'activar';
-
-    const nombreCompleto = [
-      usuario.nombre,
-      usuario.apellido
-    ]
-      .filter(Boolean)
-      .join(' ');
-
-    const confirmado =
-      window.confirm(
-        `¿Deseas ${accion} al usuario ` +
-        `${nombreCompleto || usuario.email}?`
-      );
-
-    if (!confirmado) {
-      return;
-    }
-
     try {
       setUsuarioProcesando(
-        usuario.uid
+        usuarioConfirmacion.uid
       );
 
       setErrorCarga('');
       setMensaje('');
 
       await cambiarEstadoUsuario({
-        uid: usuario.uid,
+        uid: usuarioConfirmacion.uid,
         estado: nuevoEstado
       });
 
@@ -445,6 +455,9 @@ const usuariosFiltrados = useMemo(() => {
       setUsuarios(
         usuariosActualizados
       );
+
+      setMostrarConfirmacion(false);
+      setUsuarioConfirmacion(null);
 
       setMensaje(
         nuevoEstado === 'activo'
@@ -466,19 +479,12 @@ const usuariosFiltrados = useMemo(() => {
     }
   };
 
-  const abrirPasswordModal = (
-    usuario
-  ) => {
-    setUsuarioPassword(
-      usuario
-    );
-
+  const abrirPasswordModal = (usuario) => {
+    setUsuarioPassword(usuario);
     setErrorPassword('');
     setMensaje('');
-
-    setMostrarPasswordModal(
-      true
-    );
+    setErrorCarga('');
+    setMostrarPasswordModal(true);
   };
 
   const cerrarPasswordModal = () => {
@@ -486,10 +492,7 @@ const usuariosFiltrados = useMemo(() => {
       return;
     }
 
-    setMostrarPasswordModal(
-      false
-    );
-
+    setMostrarPasswordModal(false);
     setUsuarioPassword(null);
     setErrorPassword('');
   };
@@ -517,9 +520,7 @@ const usuariosFiltrados = useMemo(() => {
       return;
     }
 
-    if (
-      password !== confirmacion
-    ) {
+    if (password !== confirmacion) {
       setErrorPassword(
         'Las contraseñas no coinciden.'
       );
@@ -545,10 +546,7 @@ const usuariosFiltrados = useMemo(() => {
         password
       });
 
-      setMostrarPasswordModal(
-        false
-      );
-
+      setMostrarPasswordModal(false);
       setUsuarioPassword(null);
 
       setMensaje(
@@ -585,6 +583,17 @@ const usuariosFiltrados = useMemo(() => {
     empresaActual?.nombre ||
     empresaSeleccionada;
 
+  const nombreUsuarioConfirmacion = [
+    usuarioConfirmacion?.nombre,
+    usuarioConfirmacion?.apellido
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  const confirmacionEsDesactivacion =
+    usuarioConfirmacion?.estado ===
+    'activo';
+
   return (
     <div className="admin-page">
       <header className="admin-cabecera">
@@ -613,140 +622,136 @@ const usuariosFiltrados = useMemo(() => {
         <button
           type="button"
           className="boton-nueva-empresa"
-          onClick={
-            abrirFormularioCrear
-          }
+          onClick={abrirFormularioCrear}
           disabled={cargando}
         >
           Nuevo usuario
         </button>
       </header>
 
+      <section className="admin-filtros">
+        <div className="campo-formulario">
+          <label htmlFor="buscar-usuario">
+            Buscar
+          </label>
 
-<section className="admin-filtros">
-  <div className="campo-formulario">
-    <label htmlFor="buscar-usuario">
-      Buscar
-    </label>
+          <input
+            id="buscar-usuario"
+            type="search"
+            placeholder="Nombre o correo"
+            value={busqueda}
+            onChange={(event) =>
+              setBusqueda(
+                event.target.value
+              )
+            }
+          />
+        </div>
 
-    <input
-      id="buscar-usuario"
-      type="search"
-      placeholder="Nombre o correo"
-      value={busqueda}
-      onChange={(event) =>
-        setBusqueda(
-          event.target.value
-        )
-      }
-    />
-  </div>
+        {!empresaSeleccionada && (
+          <div className="campo-formulario">
+            <label htmlFor="filtro-empresa">
+              Empresa
+            </label>
 
-  {!empresaSeleccionada && (
-    <div className="campo-formulario">
-      <label htmlFor="filtro-empresa">
-        Empresa
-      </label>
+            <select
+              id="filtro-empresa"
+              value={filtroEmpresa}
+              onChange={(event) =>
+                setFiltroEmpresa(
+                  event.target.value
+                )
+              }
+            >
+              <option value="">
+                Todas
+              </option>
 
-      <select
-        id="filtro-empresa"
-        value={filtroEmpresa}
-        onChange={(event) =>
-          setFiltroEmpresa(
-            event.target.value
-          )
-        }
-      >
-        <option value="">
-          Todas
-        </option>
+              {empresas.map((empresa) => (
+                <option
+                  key={empresa.id}
+                  value={empresa.id}
+                >
+                  {empresa.nombre ||
+                    empresa.id}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
-        {empresas.map((empresa) => (
-          <option
-            key={empresa.id}
-            value={empresa.id}
+        <div className="campo-formulario">
+          <label htmlFor="filtro-rol">
+            Rol
+          </label>
+
+          <select
+            id="filtro-rol"
+            value={filtroRol}
+            onChange={(event) =>
+              setFiltroRol(
+                event.target.value
+              )
+            }
           >
-            {empresa.nombre ||
-              empresa.id}
-          </option>
-        ))}
-      </select>
-    </div>
-  )}
+            <option value="">
+              Todos
+            </option>
 
-  <div className="campo-formulario">
-    <label htmlFor="filtro-rol">
-      Rol
-    </label>
+            <option value="superadmin">
+              Administrador global
+            </option>
 
-    <select
-      id="filtro-rol"
-      value={filtroRol}
-      onChange={(event) =>
-        setFiltroRol(
-          event.target.value
-        )
-      }
-    >
-      <option value="">
-        Todos
-      </option>
+            <option value="admin_empresa">
+              Administrador de empresa
+            </option>
 
-      <option value="superadmin">
-        Administrador global
-      </option>
+            <option value="operador">
+              Operador
+            </option>
+          </select>
+        </div>
 
-      <option value="admin_empresa">
-        Administrador de empresa
-      </option>
+        <div className="campo-formulario">
+          <label htmlFor="filtro-estado">
+            Estado
+          </label>
 
-      <option value="operador">
-        Operador
-      </option>
-    </select>
-  </div>
+          <select
+            id="filtro-estado"
+            value={filtroEstado}
+            onChange={(event) =>
+              setFiltroEstado(
+                event.target.value
+              )
+            }
+          >
+            <option value="">
+              Todos
+            </option>
 
-  <div className="campo-formulario">
-    <label htmlFor="filtro-estado">
-      Estado
-    </label>
+            <option value="activo">
+              Activo
+            </option>
 
-    <select
-      id="filtro-estado"
-      value={filtroEstado}
-      onChange={(event) =>
-        setFiltroEstado(
-          event.target.value
-        )
-      }
-    >
-      <option value="">
-        Todos
-      </option>
+            <option value="inactivo">
+              Inactivo
+            </option>
+          </select>
+        </div>
 
-      <option value="activo">
-        Activo
-      </option>
+        <div className="admin-contador">
+          <strong>
+            {usuariosFiltrados.length}
+          </strong>
 
-      <option value="inactivo">
-        Inactivo
-      </option>
-    </select>
-  </div>
+          {' '}
 
-  <div className="admin-contador">
-    <strong>
-      {usuariosFiltrados.length}
-    </strong>
-
-    {' '}
-
-    {usuariosFiltrados.length === 1
-      ? 'usuario'
-      : 'usuarios'}
-  </div>
-</section>
-
+          {usuariosFiltrados.length === 1
+            ? 'usuario'
+            : 'usuarios'}
+        </div>
+      </section>
 
       {mensaje && (
         <div className="mensaje-exito">
@@ -766,15 +771,13 @@ const usuariosFiltrados = useMemo(() => {
         </div>
       ) : (
         <UsuarioTable
-          usuarios={
-            usuariosFiltrados
-          }
+          usuarios={usuariosFiltrados}
           empresas={empresas}
           onEditar={
             abrirFormularioEditar
           }
           onCambiarEstado={
-            cambiarEstado
+            abrirConfirmacionEstado
           }
           onCambiarPassword={
             abrirPasswordModal
@@ -786,9 +789,7 @@ const usuariosFiltrados = useMemo(() => {
       )}
 
       <UsuarioModal
-        visible={
-          mostrarFormulario
-        }
+        visible={mostrarFormulario}
         modo={modoFormulario}
         formulario={formulario}
         empresas={empresas}
@@ -798,40 +799,64 @@ const usuariosFiltrados = useMemo(() => {
             empresaSeleccionada
           )
         }
-        error={
-          errorFormulario
-        }
-        onChange={
-          actualizarCampo
-        }
-        onSubmit={
-          guardarUsuario
-        }
-        onCerrar={
-          cerrarFormulario
-        }
+        error={errorFormulario}
+        onChange={actualizarCampo}
+        onSubmit={guardarUsuario}
+        onCerrar={cerrarFormulario}
       />
 
       <PasswordModal
-        visible={
-          mostrarPasswordModal
-        }
-        usuario={
-          usuarioPassword
-        }
+        visible={mostrarPasswordModal}
+        usuario={usuarioPassword}
         guardando={
           Boolean(
             usuarioProcesando
           )
         }
-        error={
-          errorPassword
+        error={errorPassword}
+        onSubmit={guardarPassword}
+        onCerrar={cerrarPasswordModal}
+      />
+
+      <ConfirmacionModal
+        visible={mostrarConfirmacion}
+        titulo={
+          confirmacionEsDesactivacion
+            ? 'Desactivar usuario'
+            : 'Activar usuario'
         }
-        onSubmit={
-          guardarPassword
+        mensaje={
+          usuarioConfirmacion
+            ? `¿Deseas ${
+                confirmacionEsDesactivacion
+                  ? 'desactivar'
+                  : 'activar'
+              } a ${
+                nombreUsuarioConfirmacion ||
+                usuarioConfirmacion.email
+              }?`
+            : ''
+        }
+        textoConfirmar={
+          confirmacionEsDesactivacion
+            ? 'Desactivar'
+            : 'Activar'
+        }
+        variante={
+          confirmacionEsDesactivacion
+            ? 'peligro'
+            : 'exito'
+        }
+        procesando={
+          Boolean(
+            usuarioProcesando
+          )
+        }
+        onConfirmar={
+          confirmarCambioEstado
         }
         onCerrar={
-          cerrarPasswordModal
+          cerrarConfirmacionEstado
         }
       />
     </div>
