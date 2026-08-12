@@ -7,6 +7,7 @@ function UsuarioModal({
   empresas,
   guardando,
   empresaBloqueada,
+  esAdminEmpresa,
   error,
   onChange,
   onSubmit,
@@ -16,7 +17,8 @@ function UsuarioModal({
     return null;
   }
 
-  const esEdicion = modo === 'editar';
+  const esEdicion =
+    modo === 'editar';
 
   const cerrarDesdeFondo = () => {
     if (guardando) {
@@ -30,7 +32,9 @@ function UsuarioModal({
     <div
       className="modal-fondo"
       role="presentation"
-      onMouseDown={cerrarDesdeFondo}
+      onMouseDown={
+        cerrarDesdeFondo
+      }
     >
       <div
         className="modal-empresa"
@@ -52,7 +56,9 @@ function UsuarioModal({
             <p>
               {esEdicion
                 ? 'Modifica los datos de la cuenta seleccionada.'
-                : 'Completa los datos de la nueva cuenta.'}
+                : esAdminEmpresa
+                  ? 'Crea un operador para tu empresa.'
+                  : 'Completa los datos de la nueva cuenta.'}
             </p>
           </div>
 
@@ -69,14 +75,27 @@ function UsuarioModal({
 
         <UsuarioForm
           modo={modo}
-          formulario={formulario}
-          empresas={empresas}
-          guardando={guardando}
-          empresaBloqueada={empresaBloqueada}
+          formulario={
+            formulario
+          }
+          empresas={
+            empresas
+          }
+          guardando={
+            guardando
+          }
+          empresaBloqueada={
+            empresaBloqueada
+          }
+          esAdminEmpresa={
+            esAdminEmpresa
+          }
           error={error}
           onChange={onChange}
           onSubmit={onSubmit}
-          onCancelar={onCerrar}
+          onCancelar={
+            onCerrar
+          }
         />
       </div>
     </div>

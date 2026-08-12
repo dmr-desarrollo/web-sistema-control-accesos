@@ -153,7 +153,7 @@ exports.crearUsuarioAdministrado = onCall(
 
       /*
        * 5. Un administrador de empresa
-       * solamente puede crear usuarios
+       * solamente puede crear operadores
        * dentro de su propia empresa.
        */
       if (esAdminEmpresa) {
@@ -166,6 +166,13 @@ exports.crearUsuarioAdministrado = onCall(
           throw new HttpsError(
               "failed-precondition",
               "El administrador no tiene una empresa asignada.",
+          );
+        }
+
+        if (rol !== "operador") {
+          throw new HttpsError(
+              "permission-denied",
+              "Un administrador de empresa solo puede crear operadores.",
           );
         }
       }
@@ -252,12 +259,6 @@ exports.crearUsuarioAdministrado = onCall(
           estado: "activo",
         };
       } catch (error) {
-        /*
-         * 9. Si se creó Authentication,
-         * pero falló Firestore, eliminamos
-         * la cuenta para no dejar datos
-         * incompletos.
-         */
         if (usuarioCreado) {
           try {
             await getAuth()
@@ -305,6 +306,10 @@ exports.crearUsuarioAdministrado = onCall(
           );
         }
 
+        if (error instanceof HttpsError) {
+          throw error;
+        }
+
         throw new HttpsError(
             "internal",
             "No fue posible crear el usuario.",
@@ -326,10 +331,6 @@ exports.crearUsuarioAdministrado = onCall(
  */
 exports.actualizarUsuarioAdministrado = onCall(
     async (request) => {
-      /*
-       * 1. Comprobar que quien llama
-       * tiene una sesión válida.
-       */
       if (!request.auth) {
         throw new HttpsError(
             "unauthenticated",
@@ -340,9 +341,6 @@ exports.actualizarUsuarioAdministrado = onCall(
       const uidSolicitante = request.auth.uid;
       const db = getFirestore();
 
-      /*
-       * 2. Leer el perfil del administrador.
-       */
       const perfilSolicitanteDoc = await db
           .collection("usuarios")
           .doc(uidSolicitante)
@@ -378,10 +376,6 @@ exports.actualizarUsuarioAdministrado = onCall(
         );
       }
 
-      /*
-       * 3. Obtener los datos enviados
-       * por la aplicación web.
-       */
       const datos = request.data || {};
 
       const uidUsuario =
@@ -404,9 +398,6 @@ exports.actualizarUsuarioAdministrado = onCall(
       let empresaId =
         String(datos.empresaId || "").trim();
 
-      /*
-       * 4. Validaciones básicas.
-       */
       if (!uidUsuario) {
         throw new HttpsError(
             "invalid-argument",
@@ -435,9 +426,6 @@ exports.actualizarUsuarioAdministrado = onCall(
         );
       }
 
-      /*
-       * 5. Leer el perfil que será editado.
-       */
       const usuarioRef = db
           .collection("usuarios")
           .doc(uidUsuario);
@@ -453,10 +441,6 @@ exports.actualizarUsuarioAdministrado = onCall(
 
       const usuarioActual = usuarioDoc.data();
 
-      /*
-       * El administrador global no se modifica
-       * desde el módulo normal de usuarios.
-       */
       if (usuarioActual.rol === "superadmin") {
         throw new HttpsError(
             "permission-denied",
@@ -465,8 +449,8 @@ exports.actualizarUsuarioAdministrado = onCall(
       }
 
       /*
-       * 6. Un administrador de empresa solamente
-       * puede editar usuarios de su propia empresa.
+       * Un admin_empresa solo puede editar
+       * operadores de su propia empresa.
        */
       if (esAdminEmpresa) {
         const empresaAdministrador =
@@ -491,7 +475,26 @@ exports.actualizarUsuarioAdministrado = onCall(
           );
         }
 
-        empresaId = empresaAdministrador;
+        if (
+          usuarioActual.rol !==
+          "operador"
+        ) {
+          throw new HttpsError(
+              "permission-denied",
+              "Un administrador de empresa solo puede editar operadores.",
+          );
+        }
+
+        if (rol !== "operador") {
+          throw new HttpsError(
+              "permission-denied",
+              "Un administrador de empresa no puede " +
+              "asignar roles administrativos.",
+          );
+        }
+
+        empresaId =
+          empresaAdministrador;
       }
 
       if (!empresaId) {
@@ -501,10 +504,6 @@ exports.actualizarUsuarioAdministrado = onCall(
         );
       }
 
-      /*
-       * 7. Verificar que la empresa exista
-       * y esté activa.
-       */
       const empresaDoc = await db
           .collection("empresas")
           .doc(empresaId)
@@ -526,10 +525,6 @@ exports.actualizarUsuarioAdministrado = onCall(
         );
       }
 
-      /*
-       * 8. Guardar los datos anteriores de
-       * Authentication para poder revertirlos.
-       */
       const usuarioAuthAnterior =
         await getAuth().getUser(uidUsuario);
 
@@ -542,9 +537,6 @@ exports.actualizarUsuarioAdministrado = onCall(
       let authenticationActualizado = false;
 
       try {
-        /*
-         * 9. Actualizar Firebase Authentication.
-         */
         await getAuth().updateUser(
             uidUsuario,
             {
@@ -556,9 +548,6 @@ exports.actualizarUsuarioAdministrado = onCall(
 
         authenticationActualizado = true;
 
-        /*
-         * 10. Actualizar el perfil en Firestore.
-         */
         await usuarioRef.update({
           nombre,
           apellido,
@@ -582,11 +571,6 @@ exports.actualizarUsuarioAdministrado = onCall(
             usuarioActual.estado || "activo",
         };
       } catch (error) {
-        /*
-         * 11. Si Authentication fue actualizado,
-         * pero Firestore falló, restauramos
-         * los valores anteriores.
-         */
         if (authenticationActualizado) {
           try {
             await getAuth().updateUser(
@@ -775,12 +759,13 @@ exports.cambiarEstadoUsuarioAdministrado = onCall(
         }
 
         if (
-          usuarioActual.rol === "admin_empresa"
+          usuarioActual.rol !==
+          "operador"
         ) {
           throw new HttpsError(
               "permission-denied",
-              "Un administrador de empresa no puede " +
-              "desactivar a otro administrador.",
+              "Un administrador de empresa solo puede " +
+              "cambiar el estado de operadores.",
           );
         }
       }
@@ -985,12 +970,13 @@ exports.cambiarPasswordTemporalAdministrado = onCall(
         }
 
         if (
-          usuarioActual.rol === "admin_empresa"
+          usuarioActual.rol !==
+          "operador"
         ) {
           throw new HttpsError(
               "permission-denied",
-              "Un administrador de empresa no puede " +
-              "cambiar la contraseña de otro administrador.",
+              "Un administrador de empresa solo puede " +
+              "cambiar la contraseña de operadores.",
           );
         }
       }
@@ -1050,5 +1036,149 @@ exports.cambiarPasswordTemporalAdministrado = onCall(
             "No fue posible cambiar la contraseña.",
         );
       }
+    },
+);
+
+/**
+ * Lista usuarios de forma segura.
+ *
+ * SUPERADMIN:
+ * - puede consultar todos los usuarios;
+ * - puede filtrar por una empresa concreta.
+ *
+ * ADMIN_EMPRESA:
+ * - solamente recibe usuarios de su empresa.
+ */
+exports.listarUsuariosAdministrados = onCall(
+    async (request) => {
+      if (!request.auth) {
+        throw new HttpsError(
+            "unauthenticated",
+            "Debes iniciar sesión para consultar usuarios.",
+        );
+      }
+
+      const uidSolicitante =
+        request.auth.uid;
+
+      const db =
+        getFirestore();
+
+      const perfilDoc = await db
+          .collection("usuarios")
+          .doc(uidSolicitante)
+          .get();
+
+      if (!perfilDoc.exists) {
+        throw new HttpsError(
+            "permission-denied",
+            "El usuario conectado no tiene perfil.",
+        );
+      }
+
+      const perfil =
+        perfilDoc.data();
+
+      if (perfil.estado !== "activo") {
+        throw new HttpsError(
+            "permission-denied",
+            "La cuenta no está activa.",
+        );
+      }
+
+      const esSuperadmin =
+        perfil.rol === "superadmin";
+
+      const esAdminEmpresa =
+        perfil.rol === "admin_empresa";
+
+      if (
+        !esSuperadmin &&
+        !esAdminEmpresa
+      ) {
+        throw new HttpsError(
+            "permission-denied",
+            "No tienes autorización para consultar usuarios.",
+        );
+      }
+
+      const datos =
+        request.data || {};
+
+      let empresaId =
+        String(
+            datos.empresaId || "",
+        ).trim();
+
+      /*
+       * El administrador empresarial
+       * jamás puede elegir otra empresa.
+       */
+      if (esAdminEmpresa) {
+        empresaId =
+          String(
+              perfil.empresaId || "",
+          ).trim();
+
+        if (!empresaId) {
+          throw new HttpsError(
+              "failed-precondition",
+              "El administrador no tiene empresa asignada.",
+          );
+        }
+      }
+
+      let consulta =
+        db.collection("usuarios");
+
+      if (empresaId) {
+        consulta =
+          consulta.where(
+              "empresaId",
+              "==",
+              empresaId,
+          );
+      }
+
+      const resultado =
+        await consulta.get();
+
+      const usuarios =
+        resultado.docs
+            .map((documento) => {
+              const datos =
+                documento.data();
+
+              return {
+                uid: documento.id,
+                nombre:
+                  datos.nombre || "",
+                apellido:
+                  datos.apellido || "",
+                email:
+                  datos.email || "",
+                empresaId:
+                  datos.empresaId || "",
+                rol:
+                  datos.rol || "",
+                estado:
+                  datos.estado || "",
+              };
+            })
+            .sort((usuarioA, usuarioB) =>
+              String(
+                  usuarioA.nombre || "",
+              ).localeCompare(
+                  String(
+                      usuarioB.nombre || "",
+                  ),
+                  "es",
+              ),
+            );
+
+      return {
+        ok: true,
+        usuarios,
+      };
     },
 );

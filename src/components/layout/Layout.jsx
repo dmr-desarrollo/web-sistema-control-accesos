@@ -1,29 +1,58 @@
 import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+
+import {
+  Link,
+  useLocation,
+  useNavigate
+} from 'react-router-dom';
+
 import { useAuth } from '../../hooks/useAuth';
 import { logout } from '../../services/auth';
 
 function Layout({ children }) {
-  const { user } = useAuth();
-  const location = useLocation();
+  const {
+    user,
+    perfil
+  } = useAuth();
 
-  const [menuAbierto, setMenuAbierto] = useState(false);
+  const location =
+    useLocation();
+
+  const navigate =
+    useNavigate();
+
+  const [
+    menuAbierto,
+    setMenuAbierto
+  ] = useState(false);
 
   const handleLogout = async () => {
     try {
       await logout();
+
+      navigate('/login', {
+        replace: true
+      });
     } catch (error) {
-      console.error('Error al cerrar sesión:', error);
+      console.error(
+        'Error al cerrar sesión:',
+        error
+      );
     }
   };
 
   const isActive = (path) => {
-    return location.pathname === path;
+    return (
+      location.pathname === path
+    );
   };
 
   const cerrarMenu = () => {
     setMenuAbierto(false);
   };
+
+  const esAdminEmpresa =
+    perfil?.rol === 'admin_empresa';
 
   return (
     <div className="layout">
@@ -33,12 +62,17 @@ function Layout({ children }) {
             type="button"
             className="boton-control-visitas"
             onClick={() =>
-              setMenuAbierto(!menuAbierto)
+              setMenuAbierto(
+                !menuAbierto
+              )
             }
           >
             Control de Visitas
+
             <span className="flecha-menu">
-              {menuAbierto ? '▲' : '▼'}
+              {menuAbierto
+                ? '▲'
+                : '▼'}
             </span>
           </button>
 
@@ -67,15 +101,57 @@ function Layout({ children }) {
               >
                 Historial de visitas
               </Link>
+
+              {esAdminEmpresa && (
+                <Link
+                  to="/visitables"
+                  className={
+                    isActive('/visitables')
+                      ? 'submenu-activo'
+                      : ''
+                  }
+                  onClick={cerrarMenu}
+                >
+                  Personas visitables
+                </Link>
+              )}
+
+              {esAdminEmpresa && (
+                <Link
+                  to="/empresa/usuarios"
+                  className={
+                    isActive(
+                      '/empresa/usuarios'
+                    )
+                      ? 'submenu-activo'
+                      : ''
+                  }
+                  onClick={cerrarMenu}
+                >
+                  Usuarios de la empresa
+                </Link>
+              )}
             </div>
           )}
         </div>
 
         <div className="navbar-user">
-          <span>
-            Bienvenido,{' '}
-            <strong>{user?.email}</strong>
-          </span>
+          <div>
+            <span>
+              Bienvenido,{' '}
+              <strong>
+                {perfil?.nombre ||
+                  user?.email}
+              </strong>
+            </span>
+
+            <small>
+              {perfil?.rol ===
+              'admin_empresa'
+                ? 'Administrador de empresa'
+                : 'Operador'}
+            </small>
+          </div>
 
           <button
             type="button"

@@ -1,8 +1,15 @@
-const ROLES_USUARIO = [
+const ROLES_SUPERADMIN = [
   {
     valor: 'admin_empresa',
     etiqueta: 'Administrador de empresa'
   },
+  {
+    valor: 'operador',
+    etiqueta: 'Operador'
+  }
+];
+
+const ROLES_ADMIN_EMPRESA = [
   {
     valor: 'operador',
     etiqueta: 'Operador'
@@ -15,12 +22,30 @@ function UsuarioForm({
   empresas,
   guardando,
   empresaBloqueada,
+  esAdminEmpresa = false,
   error,
   onChange,
   onSubmit,
   onCancelar
 }) {
-  const esEdicion = modo === 'editar';
+  const esEdicion =
+    modo === 'editar';
+
+  const rolesDisponibles =
+    esAdminEmpresa
+      ? ROLES_ADMIN_EMPRESA
+      : ROLES_SUPERADMIN;
+
+  const empresaSeleccionada =
+    empresas.find(
+      (empresa) =>
+        empresa.id === formulario.empresaId
+    );
+
+  const nombreEmpresa =
+    empresaSeleccionada?.nombre ||
+    formulario.empresaId ||
+    'Empresa no identificada';
 
   return (
     <form
@@ -115,33 +140,50 @@ function UsuarioForm({
           Empresa
         </label>
 
-        <select
-          id="empresaId"
-          name="empresaId"
-          value={formulario.empresaId}
-          onChange={onChange}
-          disabled={empresaBloqueada || guardando}
-          required
-        >
-          <option value="">
-            Seleccionar empresa
-          </option>
+        {empresaBloqueada ? (
+          <>
+            <input
+              id="empresaId-visible"
+              type="text"
+              value={nombreEmpresa}
+              disabled
+              readOnly
+            />
 
-          {empresas.map((empresa) => (
-            <option
-              key={empresa.id}
-              value={empresa.id}
-            >
-              {empresa.nombre || empresa.id}
+            <input
+              type="hidden"
+              name="empresaId"
+              value={formulario.empresaId}
+            />
+
+            <small>
+              Esta empresa está asociada a tu
+              perfil y no puede modificarse.
+            </small>
+          </>
+        ) : (
+          <select
+            id="empresaId"
+            name="empresaId"
+            value={formulario.empresaId}
+            onChange={onChange}
+            disabled={guardando}
+            required
+          >
+            <option value="">
+              Seleccionar empresa
             </option>
-          ))}
-        </select>
 
-        {empresaBloqueada && (
-          <small>
-            La empresa fue seleccionada desde
-            el módulo Empresas.
-          </small>
+            {empresas.map((empresa) => (
+              <option
+                key={empresa.id}
+                value={empresa.id}
+              >
+                {empresa.nombre ||
+                  empresa.id}
+              </option>
+            ))}
+          </select>
         )}
       </div>
 
@@ -153,12 +195,19 @@ function UsuarioForm({
         <select
           id="rol"
           name="rol"
-          value={formulario.rol}
+          value={
+            esAdminEmpresa
+              ? 'operador'
+              : formulario.rol
+          }
           onChange={onChange}
-          disabled={guardando}
+          disabled={
+            guardando ||
+            esAdminEmpresa
+          }
           required
         >
-          {ROLES_USUARIO.map((rol) => (
+          {rolesDisponibles.map((rol) => (
             <option
               key={rol.valor}
               value={rol.valor}
@@ -167,6 +216,14 @@ function UsuarioForm({
             </option>
           ))}
         </select>
+
+        {esAdminEmpresa && (
+          <small>
+            Un administrador de empresa solo
+            puede administrar operadores de su
+            propia empresa.
+          </small>
+        )}
       </div>
 
       <div className="modal-acciones campo-completo">

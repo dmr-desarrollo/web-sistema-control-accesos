@@ -1,43 +1,111 @@
-import { useState } from 'react';
+import {
+  useEffect,
+  useState
+} from 'react';
 
-function FormularioVisitable({ visitable, onGuardar, onCancelar }) {
-  const [nombre, setNombre] = useState(visitable?.nombre || '');
-  const [apellido, setApellido] = useState(visitable?.apellido || '');
+function FormularioVisitable({
+  visitable,
+  guardando,
+  error,
+  onGuardar,
+  onCancelar
+}) {
+  const [nombre, setNombre] =
+    useState('');
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onGuardar({ nombre, apellido });
+  const [apellido, setApellido] =
+    useState('');
+
+  useEffect(() => {
+    setNombre(
+      visitable?.nombre || ''
+    );
+
+    setApellido(
+      visitable?.apellido || ''
+    );
+  }, [visitable]);
+
+  const enviarFormulario = (event) => {
+    event.preventDefault();
+
+    onGuardar({
+      nombre,
+      apellido
+    });
   };
 
   return (
-    <form onSubmit={handleSubmit} className="formulario-visitable">
-      <h2>{visitable ? 'Editar Persona Visitable' : 'Crear Persona Visitable'}</h2>
-      
-      <div>
-        <label htmlFor="nombre">Nombre</label>
+    <form
+      className="formulario-empresa"
+      onSubmit={enviarFormulario}
+    >
+      {error && (
+        <div className="error campo-completo">
+          {error}
+        </div>
+      )}
+
+      <div className="campo-formulario">
+        <label htmlFor="nombre-visitable">
+          Nombre
+        </label>
+
         <input
+          id="nombre-visitable"
           type="text"
-          id="nombre"
           value={nombre}
-          onChange={(e) => setNombre(e.target.value)}
+          onChange={(event) =>
+            setNombre(event.target.value)
+          }
+          maxLength={80}
+          autoComplete="given-name"
+          disabled={guardando}
+          autoFocus
           required
         />
       </div>
-      
-      <div>
-        <label htmlFor="apellido">Apellido</label>
+
+      <div className="campo-formulario">
+        <label htmlFor="apellido-visitable">
+          Apellido
+        </label>
+
         <input
+          id="apellido-visitable"
           type="text"
-          id="apellido"
           value={apellido}
-          onChange={(e) => setApellido(e.target.value)}
+          onChange={(event) =>
+            setApellido(event.target.value)
+          }
+          maxLength={80}
+          autoComplete="family-name"
+          disabled={guardando}
           required
         />
       </div>
-      
-      <div className="botones">
-        <button type="submit">Guardar</button>
-        <button type="button" onClick={onCancelar}>Cancelar</button>
+
+      <div className="modal-acciones campo-completo">
+        <button
+          type="button"
+          className="boton-cancelar"
+          onClick={onCancelar}
+          disabled={guardando}
+        >
+          Cancelar
+        </button>
+
+        <button
+          type="submit"
+          className="boton-guardar"
+          disabled={guardando}
+        >
+          {guardando
+            ? 'Guardando...'
+            : visitable
+              ? 'Guardar cambios'
+              : 'Crear persona'}
+        </button>
       </div>
     </form>
   );

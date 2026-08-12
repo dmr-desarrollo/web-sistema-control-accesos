@@ -6,14 +6,20 @@ import {
   logout
 } from '../services/auth';
 
-import { obtenerPerfilUsuario } from '../services/usuarios';
+import {
+  obtenerPerfilUsuario
+} from '../services/usuarios';
 
 function LoginPage() {
-  const [email, setEmail] = useState('');
+  const [email, setEmail] =
+    useState('');
+
   const [password, setPassword] =
     useState('');
 
-  const [error, setError] = useState('');
+  const [error, setError] =
+    useState('');
+
   const [cargando, setCargando] =
     useState(false);
 
@@ -55,6 +61,10 @@ function LoginPage() {
         return;
       }
 
+      /*
+       * El superadministrador entra
+       * exclusivamente al panel global.
+       */
       if (perfil.rol === 'superadmin') {
         navigate('/admin', {
           replace: true
@@ -63,10 +73,24 @@ function LoginPage() {
         return;
       }
 
+      /*
+       * Los usuarios empresariales entran
+       * al dashboard de su empresa.
+       */
       if (
         perfil.rol === 'admin_empresa' ||
         perfil.rol === 'operador'
       ) {
+        if (!perfil.empresaId) {
+          await logout();
+
+          setError(
+            'La cuenta no tiene una empresa asignada.'
+          );
+
+          return;
+        }
+
         navigate('/dashboard', {
           replace: true
         });
@@ -80,7 +104,10 @@ function LoginPage() {
         'La cuenta no tiene un rol válido.'
       );
     } catch (err) {
-      console.error('Error de acceso:', err);
+      console.error(
+        'Error de acceso:',
+        err
+      );
 
       if (
         err.message?.includes(
@@ -102,8 +129,13 @@ function LoginPage() {
 
   return (
     <div className="login-container">
-      <h1>Control de Visitas</h1>
-      <h2>Iniciar sesión</h2>
+      <h1>
+        Control de Visitas
+      </h1>
+
+      <h2>
+        Iniciar sesión
+      </h2>
 
       {error && (
         <div className="error">
@@ -122,7 +154,9 @@ function LoginPage() {
             id="email"
             value={email}
             onChange={(event) =>
-              setEmail(event.target.value)
+              setEmail(
+                event.target.value
+              )
             }
             autoComplete="email"
             required
@@ -160,6 +194,7 @@ function LoginPage() {
 
       <p className="login-registro">
         ¿No tienes una cuenta?{' '}
+
         <button
           type="button"
           className="enlace-registro"

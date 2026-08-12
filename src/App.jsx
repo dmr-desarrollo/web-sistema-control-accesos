@@ -5,17 +5,16 @@ import {
   Routes
 } from 'react-router-dom';
 
-import LoginPage from './pages/LoginPage';
+import AdminPage from './pages/AdminPage';
 import Dashboard from './pages/Dashboard';
+import LoginPage from './pages/LoginPage';
+import PendingApprovalPage from './pages/PendingApprovalPage';
 import VisitablesPage from './pages/VisitablesPage';
 import VisitasPage from './pages/VisitasPage';
-import AdminPage from './pages/AdminPage';
-import PendingApprovalPage from './pages/PendingApprovalPage';
 
 import EmpresasPage from './pages/admin/EmpresasPage';
 import UsuariosPage from './pages/admin/UsuariosPage';
-
-
+import UsuariosEmpresaPage from './pages/empresa/UsuariosEmpresaPage';
 
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import Layout from './components/layout/Layout';
@@ -40,11 +39,15 @@ function App() {
           }
         />
 
+        {/* Panel global del superadministrador */}
+
         <Route
           path="/admin"
           element={
             <ProtectedRoute
-              allowedRoles={['superadmin']}
+              allowedRoles={[
+                'superadmin'
+              ]}
             >
               <AdminPage />
             </ProtectedRoute>
@@ -55,24 +58,30 @@ function App() {
           path="/admin/empresas"
           element={
             <ProtectedRoute
-              allowedRoles={['superadmin']}
+              allowedRoles={[
+                'superadmin'
+              ]}
             >
               <EmpresasPage />
             </ProtectedRoute>
           }
         />
 
+            <Route
+              path="/admin/usuarios"
+              element={
+                <ProtectedRoute
+                  allowedRoles={[
+                    'superadmin',
+                    'admin_empresa'
+                  ]}
+                >
+                  <UsuariosPage />
+                </ProtectedRoute>
+              }
+            />
 
-        <Route
-  path="/admin/usuarios"
-  element={
-    <ProtectedRoute
-      allowedRoles={['superadmin']}
-    >
-      <UsuariosPage />
-    </ProtectedRoute>
-  }
-/>
+        {/* Área operativa de cada empresa */}
 
         <Route
           path="/dashboard"
@@ -94,7 +103,9 @@ function App() {
           path="/visitables"
           element={
             <ProtectedRoute
-              allowedRoles={['admin_empresa']}
+              allowedRoles={[
+                'admin_empresa'
+              ]}
             >
               <Layout>
                 <VisitablesPage />
@@ -156,6 +167,24 @@ function App() {
             />
           }
         />
+
+        <Route
+          path="/empresa/usuarios"
+          element={
+            <ProtectedRoute
+              allowedRoles={[
+                'admin_empresa'
+              ]}
+            >
+              <Layout>
+                <UsuariosEmpresaPage />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+
+
+        
       </Routes>
     </BrowserRouter>
   );

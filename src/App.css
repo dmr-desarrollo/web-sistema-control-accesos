@@ -1355,3 +1355,17 @@ button {
   }
 }
 
+.usuario-protegido {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 6px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #f3f4f6;
+  color: #6b7280;
+  font-size: 14px;
+  font-weight: 600;
+}
+

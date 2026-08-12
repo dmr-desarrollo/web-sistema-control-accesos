@@ -3,216 +3,314 @@ import {
   doc,
   getDoc,
   getDocs,
-  orderBy,
   query,
   where
 } from 'firebase/firestore';
 
-import { getFunctions, httpsCallable } from 'firebase/functions';
+import {
+  getFunctions,
+  httpsCallable
+} from 'firebase/functions';
 
 import { db } from './firebase';
 
-const functions = getFunctions();
+const functions =
+  getFunctions();
 
 /**
- * Busca el perfil empresarial asociado al UID de Firebase Authentication.
- *
- * Ruta esperada:
- * usuarios/{uid}
+ * Obtiene el perfil asociado a un UID.
  */
-export const obtenerPerfilUsuario = async (uid) => {
-  if (!uid) {
-    throw new Error('No se recibió el UID del usuario');
-  }
+export const obtenerPerfilUsuario =
+  async (uid) => {
+    if (!uid) {
+      throw new Error(
+        'No se recibió el UID del usuario.'
+      );
+    }
 
-  const referencia = doc(db, 'usuarios', uid);
-  const resultado = await getDoc(referencia);
-
-  if (!resultado.exists()) {
-    throw new Error(
-      'La cuenta existe en Authentication, pero no tiene perfil en la colección usuarios'
+    const referencia = doc(
+      db,
+      'usuarios',
+      uid
     );
-  }
 
-  return {
-    uid: resultado.id,
-    ...resultado.data()
+    const resultado =
+      await getDoc(referencia);
+
+    if (!resultado.exists()) {
+      throw new Error(
+        'La cuenta existe en Authentication, pero no tiene perfil en usuarios.'
+      );
+    }
+
+    return {
+      uid: resultado.id,
+      ...resultado.data()
+    };
   };
-};
 
 /**
- * Obtiene todos los usuarios ordenados por nombre.
+ * Lista usuarios mediante Cloud Function.
+ *
+ * El backend decide automáticamente
+ * qué usuarios puede consultar el perfil.
  */
-export const listarUsuarios = async () => {
-  const consulta = query(
-    collection(db, 'usuarios'),
-    orderBy('nombre')
-  );
+export const listarUsuarios =
+  async ({
+    empresaId = ''
+  } = {}) => {
+    try {
+      const ejecutarListado =
+        httpsCallable(
+          functions,
+          'listarUsuariosAdministrados'
+        );
 
-  const resultado = await getDocs(consulta);
+      const respuesta =
+        await ejecutarListado({
+          empresaId
+        });
 
-  return resultado.docs.map((doc) => ({
-    uid: doc.id,
-    ...doc.data()
-  }));
-};
+      return (
+        respuesta.data?.usuarios ||
+        []
+      );
+    } catch (error) {
+      console.error(
+        'Error listando usuarios:',
+        error
+      );
+
+      const mensaje =
+        error?.details ||
+        error?.message ||
+        'No fue posible obtener los usuarios.';
+
+      throw new Error(mensaje);
+    }
+  };
 
 /**
- * Obtiene las empresas activas para mostrarlas
- * en el selector del formulario de usuarios.
+ * Obtiene todas las empresas activas.
+ * Uso exclusivo del superadministrador.
  */
-export const obtenerEmpresasActivas = async () => {
-  const consulta = query(
-    collection(db, 'empresas'),
-    where('activa', '==', true)
-  );
-
-  const resultado = await getDocs(consulta);
-
-  return resultado.docs
-    .map((documento) => ({
-      id: documento.id,
-      ...documento.data()
-    }))
-    .sort((empresaA, empresaB) =>
-      String(empresaA.nombre || '').localeCompare(
-        String(empresaB.nombre || ''),
-        'es'
+export const obtenerEmpresasActivas =
+  async () => {
+    const consulta = query(
+      collection(
+        db,
+        'empresas'
+      ),
+      where(
+        'activa',
+        '==',
+        true
       )
     );
-};
+
+    const resultado =
+      await getDocs(consulta);
+
+    return resultado.docs
+      .map((documento) => ({
+        id: documento.id,
+        ...documento.data()
+      }))
+      .sort(
+        (
+          empresaA,
+          empresaB
+        ) =>
+          String(
+            empresaA.nombre || ''
+          ).localeCompare(
+            String(
+              empresaB.nombre || ''
+            ),
+            'es'
+          )
+      );
+  };
 
 /**
- * Crea un usuario mediante la Cloud Function segura.
- *
- * La función crea:
- * - la cuenta en Firebase Authentication;
- * - el perfil en usuarios/{uid}.
+ * Obtiene únicamente una empresa.
  */
-export const crearUsuarioAdministrado = async (datosUsuario) => {
-  try {
-    const ejecutarCreacion = httpsCallable(
-      functions,
-      'crearUsuarioAdministrado'
+export const obtenerEmpresaActivaPorId =
+  async (empresaId) => {
+    const id =
+      String(
+        empresaId || ''
+      ).trim();
+
+    if (!id) {
+      throw new Error(
+        'No se pudo identificar la empresa.'
+      );
+    }
+
+    const referencia = doc(
+      db,
+      'empresas',
+      id
     );
 
-    const respuesta = await ejecutarCreacion(datosUsuario);
+    const resultado =
+      await getDoc(referencia);
 
-    return respuesta.data;
-  } catch (error) {
-    console.error('Error al crear el usuario:', error);
+    if (!resultado.exists()) {
+      throw new Error(
+        'La empresa asignada no existe.'
+      );
+    }
 
-    const mensajeFirebase =
-      error?.message ||
-      error?.details ||
-      'No fue posible crear el usuario';
+    const datos =
+      resultado.data();
 
-    throw new Error(mensajeFirebase);
-  }
-};
+    if (datos.activa === false) {
+      throw new Error(
+        'La empresa asignada está inactiva.'
+      );
+    }
+
+    return {
+      id: resultado.id,
+      ...datos
+    };
+  };
 
 /**
- * Actualiza un usuario mediante la Cloud Function segura.
+ * Crea usuario.
  */
-export const actualizarUsuario = async (datosUsuario) => {
-  try {
-    const ejecutarActualizacion = httpsCallable(
-      functions,
-      'actualizarUsuarioAdministrado'
-    );
+export const crearUsuarioAdministrado =
+  async (datosUsuario) => {
+    try {
+      const ejecutarCreacion =
+        httpsCallable(
+          functions,
+          'crearUsuarioAdministrado'
+        );
 
-    const respuesta = await ejecutarActualizacion(datosUsuario);
+      const respuesta =
+        await ejecutarCreacion(
+          datosUsuario
+        );
 
-    return respuesta.data;
-  } catch (error) {
-    console.error(
-      'Error al actualizar el usuario:',
-      error
-    );
+      return respuesta.data;
+    } catch (error) {
+      console.error(
+        'Error creando usuario:',
+        error
+      );
 
-    const mensaje =
-      error?.message ||
-      error?.details ||
-      'No fue posible actualizar el usuario';
-
-    throw new Error(mensaje);
-  }
-};
+      throw new Error(
+        error?.details ||
+        error?.message ||
+        'No fue posible crear el usuario.'
+      );
+    }
+  };
 
 /**
- * Activa o desactiva un usuario mediante
- * la Cloud Function segura.
+ * Actualiza usuario.
  */
-export const cambiarEstadoUsuario = async ({
-  uid,
-  estado
-}) => {
-  try {
-    const ejecutarCambioEstado = httpsCallable(
-      functions,
-      'cambiarEstadoUsuarioAdministrado'
-    );
+export const actualizarUsuario =
+  async (datosUsuario) => {
+    try {
+      const ejecutarActualizacion =
+        httpsCallable(
+          functions,
+          'actualizarUsuarioAdministrado'
+        );
 
-    const respuesta =
-      await ejecutarCambioEstado({
-        uid,
-        estado
-      });
+      const respuesta =
+        await ejecutarActualizacion(
+          datosUsuario
+        );
 
-    return respuesta.data;
-  } catch (error) {
-    console.error(
-      'Error al cambiar el estado del usuario:',
-      error
-    );
+      return respuesta.data;
+    } catch (error) {
+      console.error(
+        'Error actualizando usuario:',
+        error
+      );
 
-    const mensaje =
-      error?.details ||
-      error?.message ||
-      'No fue posible cambiar el estado del usuario';
-
-    throw new Error(mensaje, {
-      cause: error
-    });
-  }
-};
+      throw new Error(
+        error?.details ||
+        error?.message ||
+        'No fue posible actualizar el usuario.'
+      );
+    }
+  };
 
 /**
- * Cambia la contraseña temporal de un usuario
- * mediante la Cloud Function segura.
+ * Activa/desactiva usuario.
  */
-export const cambiarPasswordTemporal = async ({
-  uid,
-  password
-}) => {
-  try {
-    const ejecutarCambioPassword = httpsCallable(
-      functions,
-      'cambiarPasswordTemporalAdministrado'
-    );
+export const cambiarEstadoUsuario =
+  async ({
+    uid,
+    estado
+  }) => {
+    try {
+      const ejecutar =
+        httpsCallable(
+          functions,
+          'cambiarEstadoUsuarioAdministrado'
+        );
 
-    const respuesta =
-      await ejecutarCambioPassword({
-        uid,
-        password
-      });
+      const respuesta =
+        await ejecutar({
+          uid,
+          estado
+        });
 
-    return respuesta.data;
-  } catch (error) {
-    console.error(
-      'Error al cambiar la contraseña:',
-      error
-    );
+      return respuesta.data;
+    } catch (error) {
+      console.error(
+        'Error cambiando estado:',
+        error
+      );
 
-    const mensaje =
-      error?.details ||
-      error?.message ||
-      'No fue posible cambiar la contraseña';
+      throw new Error(
+        error?.details ||
+        error?.message ||
+        'No fue posible cambiar el estado.'
+      );
+    }
+  };
 
-    throw new Error(mensaje, {
-      cause: error
-    });
-  }
-};
+/**
+ * Cambia contraseña temporal.
+ */
+export const cambiarPasswordTemporal =
+  async ({
+    uid,
+    password
+  }) => {
+    try {
+      const ejecutar =
+        httpsCallable(
+          functions,
+          'cambiarPasswordTemporalAdministrado'
+        );
 
+      const respuesta =
+        await ejecutar({
+          uid,
+          password
+        });
 
+      return respuesta.data;
+    } catch (error) {
+      console.error(
+        'Error cambiando contraseña:',
+        error
+      );
+
+      throw new Error(
+        error?.details ||
+        error?.message ||
+        'No fue posible cambiar la contraseña.'
+      );
+    }
+  };
+  

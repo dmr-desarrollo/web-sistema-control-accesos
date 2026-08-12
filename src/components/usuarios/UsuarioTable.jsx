@@ -12,12 +12,18 @@ function obtenerNombreEmpresa(
     (item) => item.id === empresaId
   );
 
-  return empresa?.nombre || empresaId || 'Sin empresa';
+  return (
+    empresa?.nombre ||
+    empresaId ||
+    'Sin empresa'
+  );
 }
 
 function UsuarioTable({
   usuarios,
   empresas,
+  usuarioActualUid,
+  rolActual,
   onEditar,
   onCambiarEstado,
   onCambiarPassword,
@@ -65,8 +71,16 @@ function UsuarioTable({
             const esSuperadmin =
               usuario.rol === 'superadmin';
 
+            const esPropioUsuario =
+              usuario.uid === usuarioActualUid;
+
+            const esAdminEmpresaPropio =
+              esPropioUsuario &&
+              rolActual === 'admin_empresa';
+
             const procesando =
-              usuarioProcesando === usuario.uid;
+              usuarioProcesando ===
+              usuario.uid;
 
             return (
               <tr key={usuario.uid}>
@@ -112,53 +126,56 @@ function UsuarioTable({
                 </td>
 
                 <td>
-  <div className="acciones-usuario">
+                  <div className="acciones-usuario">
+                    {esSuperadmin ? (
+                      <span className="usuario-protegido">
+                        Protegido
+                      </span>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            onEditar(usuario)
+                          }
+                          disabled={procesando}
+                        >
+                          Editar
+                        </button>
 
-    <button
-      type="button"
-      onClick={() =>
-        onEditar(usuario)
-      }
-      disabled={
-        esSuperadmin ||
-        procesando
-      }
-    >
-      {esSuperadmin
-        ? 'Protegido'
-        : 'Editar'}
-    </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            onCambiarPassword(
+                              usuario
+                            )
+                          }
+                          disabled={procesando}
+                        >
+                          Contraseña
+                        </button>
 
-    {!esSuperadmin && (
-      <button
-        type="button"
-        onClick={() =>
-          onCambiarPassword(usuario)
-        }
-        disabled={procesando}
-      >
-        Contraseña
-      </button>
-    )}
-
-    {!esSuperadmin && (
-      <button
-        type="button"
-        onClick={() =>
-          onCambiarEstado(usuario)
-        }
-        disabled={procesando}
-      >
-        {procesando
-          ? 'Procesando...'
-          : estaActivo
-            ? 'Desactivar'
-            : 'Activar'}
-      </button>
-    )}
-
-  </div>
-</td>
+                        {!esAdminEmpresaPropio && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              onCambiarEstado(
+                                usuario
+                              )
+                            }
+                            disabled={procesando}
+                          >
+                            {procesando
+                              ? 'Procesando...'
+                              : estaActivo
+                                ? 'Desactivar'
+                                : 'Activar'}
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </td>
               </tr>
             );
           })}

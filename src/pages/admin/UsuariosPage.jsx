@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useMemo,
   useState
@@ -14,12 +15,15 @@ import PasswordModal from '../../components/usuarios/PasswordModal';
 import UsuarioModal from '../../components/usuarios/UsuarioModal';
 import UsuarioTable from '../../components/usuarios/UsuarioTable';
 
+import { useAuth } from '../../hooks/useAuth';
+
 import {
   actualizarUsuario,
   cambiarEstadoUsuario,
   cambiarPasswordTemporal,
   crearUsuarioAdministrado,
   listarUsuarios,
+  obtenerEmpresaActivaPorId,
   obtenerEmpresasActivas
 } from '../../services/usuarios';
 
@@ -34,11 +38,37 @@ const FORMULARIO_INICIAL = {
 };
 
 function UsuariosPage() {
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const { perfil } = useAuth();
 
-  const empresaSeleccionada =
+  const navigate = useNavigate();
+
+  const [searchParams] =
+    useSearchParams();
+
+  const empresaParametro =
     searchParams.get('empresa') || '';
+
+  const esSuperadmin =
+    perfil?.rol === 'superadmin';
+
+  const esAdminEmpresa =
+    perfil?.rol === 'admin_empresa';
+
+  /*
+   * El admin_empresa siempre trabaja
+   * con la empresa de su propio perfil.
+   *
+   * El parámetro ?empresa= solamente
+   * se utiliza para el superadmin.
+   */
+  const empresaSeleccionada =
+    esAdminEmpresa
+      ? String(
+          perfil?.empresaId || ''
+        ).trim()
+      : String(
+          empresaParametro || ''
+        ).trim();
 
   const [usuarios, setUsuarios] =
     useState([]);
@@ -49,11 +79,15 @@ function UsuariosPage() {
   const [formulario, setFormulario] =
     useState(FORMULARIO_INICIAL);
 
-  const [modoFormulario, setModoFormulario] =
-    useState('crear');
+  const [
+    modoFormulario,
+    setModoFormulario
+  ] = useState('crear');
 
-  const [mostrarFormulario, setMostrarFormulario] =
-    useState(false);
+  const [
+    mostrarFormulario,
+    setMostrarFormulario
+  ] = useState(false);
 
   const [cargando, setCargando] =
     useState(true);
@@ -64,8 +98,10 @@ function UsuariosPage() {
   const [errorCarga, setErrorCarga] =
     useState('');
 
-  const [errorFormulario, setErrorFormulario] =
-    useState('');
+  const [
+    errorFormulario,
+    setErrorFormulario
+  ] = useState('');
 
   const [mensaje, setMensaje] =
     useState('');
@@ -73,17 +109,23 @@ function UsuariosPage() {
   const [busqueda, setBusqueda] =
     useState('');
 
-  const [filtroEmpresa, setFiltroEmpresa] =
-    useState('');
+  const [
+    filtroEmpresa,
+    setFiltroEmpresa
+  ] = useState('');
 
   const [filtroRol, setFiltroRol] =
     useState('');
 
-  const [filtroEstado, setFiltroEstado] =
-    useState('');
+  const [
+    filtroEstado,
+    setFiltroEstado
+  ] = useState('');
 
-  const [usuarioProcesando, setUsuarioProcesando] =
-    useState(null);
+  const [
+    usuarioProcesando,
+    setUsuarioProcesando
+  ] = useState(null);
 
   const [
     usuarioConfirmacion,
@@ -110,464 +152,848 @@ function UsuariosPage() {
     setErrorPassword
   ] = useState('');
 
-  useEffect(() => {
-    cargarDatos();
-  }, []);
+  /*
+   * Lista usuarios según el contexto.
+   *
+   * admin_empresa:
+   * Cloud Function fuerza su empresa.
+   *
+   * superadmin con ?empresa:
+   * filtra esa empresa.
+   *
+   * superadmin global:
+   * lista todos.
+   */
+  const cargarUsuarios =
+    useCallback(async () => {
+      if (esAdminEmpresa) {
+        const empresaId =
+          String(
+            perfil?.empresaId || ''
+          ).trim();
 
-  const empresaActual = useMemo(() => {
-    if (!empresaSeleccionada) {
-      return null;
-    }
+        if (!empresaId) {
+          throw new Error(
+            'El administrador no tiene una empresa asignada.'
+          );
+        }
 
-    return (
-      empresas.find(
-        (empresa) =>
-          empresa.id === empresaSeleccionada
-      ) || null
-    );
-  }, [
-    empresas,
-    empresaSeleccionada
-  ]);
+        return listarUsuarios({
+          empresaId
+        });
+      }
 
-  const usuariosFiltrados = useMemo(() => {
-    const textoBusqueda =
-      busqueda
-        .trim()
-        .toLowerCase();
+      if (
+        esSuperadmin &&
+        empresaParametro
+      ) {
+        return listarUsuarios({
+          empresaId:
+            empresaParametro
+        });
+      }
 
-    return usuarios.filter((usuario) => {
-      const nombreCompleto = [
-        usuario.nombre,
-        usuario.apellido
-      ]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase();
+      if (esSuperadmin) {
+        return listarUsuarios();
+      }
 
-      const email =
-        String(usuario.email || '')
-          .toLowerCase();
+      return [];
+    }, [
+      esAdminEmpresa,
+      esSuperadmin,
+      perfil?.empresaId,
+      empresaParametro
+    ]);
 
-      const coincideBusqueda =
-        !textoBusqueda ||
-        nombreCompleto.includes(
-          textoBusqueda
-        ) ||
-        email.includes(
-          textoBusqueda
+  /*
+   * Carga empresas según el rol.
+   *
+   * admin_empresa:
+   * solo obtiene su empresa.
+   *
+   * superadmin:
+   * puede obtener todas las activas.
+   */
+  const cargarEmpresas =
+    useCallback(async () => {
+      if (esAdminEmpresa) {
+        const empresaId =
+          String(
+            perfil?.empresaId || ''
+          ).trim();
+
+        if (!empresaId) {
+          throw new Error(
+            'El administrador no tiene una empresa asignada.'
+          );
+        }
+
+        const empresa =
+          await obtenerEmpresaActivaPorId(
+            empresaId
+          );
+
+        return [empresa];
+      }
+
+      if (esSuperadmin) {
+        return obtenerEmpresasActivas();
+      }
+
+      return [];
+    }, [
+      esAdminEmpresa,
+      esSuperadmin,
+      perfil?.empresaId
+    ]);
+
+  /*
+   * Carga inicial del módulo.
+   */
+  const cargarDatos =
+    useCallback(async () => {
+      try {
+        setCargando(true);
+        setErrorCarga('');
+
+        const [
+          datosUsuarios,
+          datosEmpresas
+        ] = await Promise.all([
+          cargarUsuarios(),
+          cargarEmpresas()
+        ]);
+
+        setUsuarios(
+          datosUsuarios
         );
 
-      const empresaFiltroFinal =
-        empresaSeleccionada ||
-        filtroEmpresa;
+        setEmpresas(
+          datosEmpresas
+        );
+      } catch (error) {
+        console.error(
+          'Error cargando el módulo de usuarios:',
+          error
+        );
 
-      const coincideEmpresa =
-        !empresaFiltroFinal ||
-        usuario.empresaId ===
-          empresaFiltroFinal;
+        setErrorCarga(
+          error.message ||
+            'No fue posible cargar los usuarios.'
+        );
+      } finally {
+        setCargando(false);
+      }
+    }, [
+      cargarUsuarios,
+      cargarEmpresas
+    ]);
 
-      const coincideRol =
-        !filtroRol ||
-        usuario.rol === filtroRol;
-
-      const coincideEstado =
-        !filtroEstado ||
-        usuario.estado === filtroEstado;
-
-      return (
-        coincideBusqueda &&
-        coincideEmpresa &&
-        coincideRol &&
-        coincideEstado
-      );
-    });
+  useEffect(() => {
+    cargarDatos();
   }, [
-    usuarios,
-    busqueda,
-    empresaSeleccionada,
-    filtroEmpresa,
-    filtroRol,
-    filtroEstado
+    cargarDatos
   ]);
 
-  const cargarDatos = async () => {
-    try {
-      setCargando(true);
-      setErrorCarga('');
+  /*
+   * Empresa actual para mostrar
+   * el nombre en pantalla.
+   */
+  const empresaActual =
+    useMemo(() => {
+      if (!empresaSeleccionada) {
+        return null;
+      }
 
-      const [
-        datosUsuarios,
-        datosEmpresas
-      ] = await Promise.all([
-        listarUsuarios(),
-        obtenerEmpresasActivas()
-      ]);
-
-      setUsuarios(datosUsuarios);
-      setEmpresas(datosEmpresas);
-    } catch (error) {
-      console.error(
-        'Error cargando el módulo de usuarios:',
-        error
+      return (
+        empresas.find(
+          (empresa) =>
+            empresa.id ===
+            empresaSeleccionada
+        ) || null
       );
+    }, [
+      empresas,
+      empresaSeleccionada
+    ]);
 
-      setErrorCarga(
-        error.message ||
-          'No fue posible cargar los usuarios.'
+  /*
+   * Filtros visuales.
+   */
+  const usuariosFiltrados =
+    useMemo(() => {
+      const textoBusqueda =
+        busqueda
+          .trim()
+          .toLowerCase();
+
+      return usuarios.filter(
+        (usuario) => {
+          const nombreCompleto = [
+            usuario.nombre,
+            usuario.apellido
+          ]
+            .filter(Boolean)
+            .join(' ')
+            .toLowerCase();
+
+          const email =
+            String(
+              usuario.email || ''
+            ).toLowerCase();
+
+          const coincideBusqueda =
+            !textoBusqueda ||
+            nombreCompleto.includes(
+              textoBusqueda
+            ) ||
+            email.includes(
+              textoBusqueda
+            );
+
+          const empresaFiltroFinal =
+            empresaSeleccionada ||
+            filtroEmpresa;
+
+          const coincideEmpresa =
+            !empresaFiltroFinal ||
+            usuario.empresaId ===
+              empresaFiltroFinal;
+
+          const coincideRol =
+            !filtroRol ||
+            usuario.rol ===
+              filtroRol;
+
+          const coincideEstado =
+            !filtroEstado ||
+            usuario.estado ===
+              filtroEstado;
+
+          return (
+            coincideBusqueda &&
+            coincideEmpresa &&
+            coincideRol &&
+            coincideEstado
+          );
+        }
       );
-    } finally {
-      setCargando(false);
-    }
-  };
+    }, [
+      usuarios,
+      busqueda,
+      empresaSeleccionada,
+      filtroEmpresa,
+      filtroRol,
+      filtroEstado
+    ]);
 
-  const actualizarCampo = (event) => {
+  const actualizarCampo = (
+    event
+  ) => {
     const {
       name,
       value
     } = event.target;
 
-    setFormulario((estadoAnterior) => ({
-      ...estadoAnterior,
-      [name]: value
-    }));
-  };
-
-  const abrirFormularioCrear = () => {
-    setModoFormulario('crear');
-
-    setFormulario({
-      ...FORMULARIO_INICIAL,
-      empresaId: empresaSeleccionada
-    });
-
-    setErrorFormulario('');
-    setErrorCarga('');
-    setMensaje('');
-    setMostrarFormulario(true);
-  };
-
-  const abrirFormularioEditar = (usuario) => {
-    if (usuario.rol === 'superadmin') {
-      setMensaje('');
-
-      setErrorCarga(
-        'El administrador global no puede editarse desde este módulo.'
-      );
-
-      return;
-    }
-
-    setModoFormulario('editar');
-
-    setFormulario({
-      uid: usuario.uid,
-      nombre: usuario.nombre || '',
-      apellido: usuario.apellido || '',
-      email: usuario.email || '',
-      password: '',
-      empresaId: usuario.empresaId || '',
-      rol: usuario.rol || 'operador'
-    });
-
-    setErrorCarga('');
-    setErrorFormulario('');
-    setMensaje('');
-    setMostrarFormulario(true);
-  };
-
-  const cerrarFormulario = () => {
-    if (guardando) {
-      return;
-    }
-
-    setMostrarFormulario(false);
-    setModoFormulario('crear');
-    setFormulario(FORMULARIO_INICIAL);
-    setErrorFormulario('');
-  };
-
-  const guardarUsuario = async (event) => {
-    event.preventDefault();
-
-    setErrorFormulario('');
-    setMensaje('');
-
-    const nombre =
-      formulario.nombre.trim();
-
-    const apellido =
-      formulario.apellido.trim();
-
-    const email =
-      formulario.email
-        .trim()
-        .toLowerCase();
-
-    if (!nombre) {
-      setErrorFormulario(
-        'Debes ingresar el nombre.'
-      );
-
-      return;
-    }
-
-    if (!email) {
-      setErrorFormulario(
-        'Debes ingresar el correo electrónico.'
-      );
-
-      return;
-    }
-
+    /*
+     * Seguridad visual adicional.
+     * Admin empresa no modifica
+     * empresa ni rol.
+     */
     if (
-      modoFormulario === 'crear' &&
-      formulario.password.length < 6
+      esAdminEmpresa &&
+      (
+        name === 'empresaId' ||
+        name === 'rol'
+      )
     ) {
-      setErrorFormulario(
-        'La contraseña temporal debe tener al menos 6 caracteres.'
-      );
-
       return;
     }
 
-    if (!formulario.empresaId) {
-      setErrorFormulario(
-        'Debes seleccionar una empresa.'
+    setFormulario(
+      (estadoAnterior) => ({
+        ...estadoAnterior,
+        [name]: value
+      })
+    );
+  };
+
+  const abrirFormularioCrear =
+    () => {
+      const empresaId =
+        esAdminEmpresa
+          ? String(
+              perfil?.empresaId ||
+                ''
+            ).trim()
+          : empresaSeleccionada;
+
+      setModoFormulario(
+        'crear'
       );
 
-      return;
-    }
+      setFormulario({
+        ...FORMULARIO_INICIAL,
+        empresaId,
+        rol: 'operador'
+      });
 
-    try {
-      setGuardando(true);
+      setErrorFormulario('');
+      setErrorCarga('');
+      setMensaje('');
+      setMostrarFormulario(
+        true
+      );
+    };
 
-      if (modoFormulario === 'editar') {
-        await actualizarUsuario({
-          uid: formulario.uid,
-          nombre,
-          apellido,
-          email,
-          empresaId: formulario.empresaId,
-          rol: formulario.rol
-        });
-      } else {
-        await crearUsuarioAdministrado({
-          nombre,
-          apellido,
-          email,
-          password: formulario.password,
-          empresaId: formulario.empresaId,
-          rol: formulario.rol
-        });
+  const abrirFormularioEditar =
+    (usuario) => {
+      if (
+        usuario.rol ===
+        'superadmin'
+      ) {
+        setMensaje('');
+
+        setErrorCarga(
+          'El administrador global no puede editarse desde este módulo.'
+        );
+
+        return;
       }
 
-      const usuariosActualizados =
-        await listarUsuarios();
+      /*
+       * Admin empresa solo administra
+       * operadores.
+       */
+      if (
+        esAdminEmpresa &&
+        usuario.rol !==
+          'operador'
+      ) {
+        setMensaje('');
 
-      setUsuarios(
-        usuariosActualizados
+        setErrorCarga(
+          'El administrador de empresa solo puede administrar operadores.'
+        );
+
+        return;
+      }
+
+      /*
+       * Admin empresa nunca administra
+       * otra empresa.
+       */
+      if (
+        esAdminEmpresa &&
+        usuario.empresaId !==
+          perfil?.empresaId
+      ) {
+        setMensaje('');
+
+        setErrorCarga(
+          'No puedes administrar usuarios de otra empresa.'
+        );
+
+        return;
+      }
+
+      setModoFormulario(
+        'editar'
       );
 
-      setMostrarFormulario(false);
-      setModoFormulario('crear');
+      setFormulario({
+        uid:
+          usuario.uid,
+        nombre:
+          usuario.nombre || '',
+        apellido:
+          usuario.apellido || '',
+        email:
+          usuario.email || '',
+        password: '',
+        empresaId:
+          esAdminEmpresa
+            ? perfil?.empresaId || ''
+            : usuario.empresaId || '',
+        rol:
+          esAdminEmpresa
+            ? 'operador'
+            : usuario.rol ||
+              'operador'
+      });
+
+      setErrorCarga('');
+      setErrorFormulario('');
+      setMensaje('');
+      setMostrarFormulario(
+        true
+      );
+    };
+
+  const cerrarFormulario =
+    () => {
+      if (guardando) {
+        return;
+      }
+
+      setMostrarFormulario(
+        false
+      );
+
+      setModoFormulario(
+        'crear'
+      );
+
       setFormulario(
         FORMULARIO_INICIAL
       );
 
-      setMensaje(
-        modoFormulario === 'editar'
-          ? 'El usuario fue actualizado correctamente.'
-          : 'El usuario fue creado correctamente.'
-      );
-    } catch (error) {
-      console.error(
-        modoFormulario === 'editar'
-          ? 'Error actualizando usuario:'
-          : 'Error creando usuario:',
-        error
-      );
+      setErrorFormulario('');
+    };
 
-      setErrorFormulario(
-        error.message ||
-          (
-            modoFormulario === 'editar'
-              ? 'No fue posible actualizar el usuario.'
-              : 'No fue posible crear el usuario.'
-          )
-      );
-    } finally {
-      setGuardando(false);
-    }
-  };
+  const guardarUsuario =
+    async (event) => {
+      event.preventDefault();
 
-  const abrirConfirmacionEstado = (usuario) => {
-    setUsuarioConfirmacion(usuario);
-    setMensaje('');
-    setErrorCarga('');
-    setMostrarConfirmacion(true);
-  };
-
-  const cerrarConfirmacionEstado = () => {
-    if (usuarioProcesando) {
-      return;
-    }
-
-    setMostrarConfirmacion(false);
-    setUsuarioConfirmacion(null);
-  };
-
-  const confirmarCambioEstado = async () => {
-    if (!usuarioConfirmacion?.uid) {
-      setMostrarConfirmacion(false);
-
-      setErrorCarga(
-        'No se pudo identificar al usuario seleccionado.'
-      );
-
-      return;
-    }
-
-    const estaActivo =
-      usuarioConfirmacion.estado === 'activo';
-
-    const nuevoEstado =
-      estaActivo
-        ? 'inactivo'
-        : 'activo';
-
-    try {
-      setUsuarioProcesando(
-        usuarioConfirmacion.uid
-      );
-
-      setErrorCarga('');
+      setErrorFormulario('');
       setMensaje('');
 
-      await cambiarEstadoUsuario({
-        uid: usuarioConfirmacion.uid,
-        estado: nuevoEstado
-      });
+      const nombre =
+        formulario.nombre
+          .trim();
 
-      const usuariosActualizados =
-        await listarUsuarios();
+      const apellido =
+        formulario.apellido
+          .trim();
 
-      setUsuarios(
-        usuariosActualizados
+      const email =
+        formulario.email
+          .trim()
+          .toLowerCase();
+
+      const empresaIdFinal =
+        esAdminEmpresa
+          ? String(
+              perfil?.empresaId ||
+                ''
+            ).trim()
+          : formulario.empresaId;
+
+      const rolFinal =
+        esAdminEmpresa
+          ? 'operador'
+          : formulario.rol;
+
+      if (!nombre) {
+        setErrorFormulario(
+          'Debes ingresar el nombre.'
+        );
+
+        return;
+      }
+
+      if (!email) {
+        setErrorFormulario(
+          'Debes ingresar el correo electrónico.'
+        );
+
+        return;
+      }
+
+      if (
+        modoFormulario ===
+          'crear' &&
+        formulario.password
+          .length < 6
+      ) {
+        setErrorFormulario(
+          'La contraseña temporal debe tener al menos 6 caracteres.'
+        );
+
+        return;
+      }
+
+      if (!empresaIdFinal) {
+        setErrorFormulario(
+          'Debes seleccionar una empresa.'
+        );
+
+        return;
+      }
+
+      if (
+        esAdminEmpresa &&
+        rolFinal !== 'operador'
+      ) {
+        setErrorFormulario(
+          'Un administrador de empresa solo puede crear operadores.'
+        );
+
+        return;
+      }
+
+      try {
+        setGuardando(true);
+
+        if (
+          modoFormulario ===
+          'editar'
+        ) {
+          await actualizarUsuario({
+            uid:
+              formulario.uid,
+            nombre,
+            apellido,
+            email,
+            empresaId:
+              empresaIdFinal,
+            rol:
+              rolFinal
+          });
+        } else {
+          await crearUsuarioAdministrado({
+            nombre,
+            apellido,
+            email,
+            password:
+              formulario.password,
+            empresaId:
+              empresaIdFinal,
+            rol:
+              rolFinal
+          });
+        }
+
+        const usuariosActualizados =
+          await cargarUsuarios();
+
+        setUsuarios(
+          usuariosActualizados
+        );
+
+        setMostrarFormulario(
+          false
+        );
+
+        setModoFormulario(
+          'crear'
+        );
+
+        setFormulario(
+          FORMULARIO_INICIAL
+        );
+
+        setMensaje(
+          modoFormulario ===
+            'editar'
+            ? 'El usuario fue actualizado correctamente.'
+            : 'El usuario fue creado correctamente.'
+        );
+      } catch (error) {
+        console.error(
+          modoFormulario ===
+            'editar'
+            ? 'Error actualizando usuario:'
+            : 'Error creando usuario:',
+          error
+        );
+
+        setErrorFormulario(
+          error.message ||
+            (
+              modoFormulario ===
+                'editar'
+                ? 'No fue posible actualizar el usuario.'
+                : 'No fue posible crear el usuario.'
+            )
+        );
+      } finally {
+        setGuardando(false);
+      }
+    };
+
+  const abrirConfirmacionEstado =
+    (usuario) => {
+      if (
+        esAdminEmpresa &&
+        usuario.rol !==
+          'operador'
+      ) {
+        setErrorCarga(
+          'El administrador de empresa solo puede cambiar el estado de operadores.'
+        );
+
+        return;
+      }
+
+      if (
+        esAdminEmpresa &&
+        usuario.empresaId !==
+          perfil?.empresaId
+      ) {
+        setErrorCarga(
+          'No puedes administrar usuarios de otra empresa.'
+        );
+
+        return;
+      }
+
+      setUsuarioConfirmacion(
+        usuario
       );
 
-      setMostrarConfirmacion(false);
-      setUsuarioConfirmacion(null);
-
-      setMensaje(
-        nuevoEstado === 'activo'
-          ? 'El usuario fue activado correctamente.'
-          : 'El usuario fue desactivado correctamente.'
+      setMensaje('');
+      setErrorCarga('');
+      setMostrarConfirmacion(
+        true
       );
-    } catch (error) {
-      console.error(
-        'Error cambiando estado del usuario:',
-        error
-      );
+    };
 
-      setErrorCarga(
-        error.message ||
-          'No fue posible cambiar el estado del usuario.'
-      );
-    } finally {
-      setUsuarioProcesando(null);
-    }
-  };
+  const cerrarConfirmacionEstado =
+    () => {
+      if (usuarioProcesando) {
+        return;
+      }
 
-  const abrirPasswordModal = (usuario) => {
-    setUsuarioPassword(usuario);
-    setErrorPassword('');
-    setMensaje('');
-    setErrorCarga('');
-    setMostrarPasswordModal(true);
-  };
-
-  const cerrarPasswordModal = () => {
-    if (usuarioProcesando) {
-      return;
-    }
-
-    setMostrarPasswordModal(false);
-    setUsuarioPassword(null);
-    setErrorPassword('');
-  };
-
-  const guardarPassword = async ({
-    password,
-    confirmacion
-  }) => {
-    setErrorPassword('');
-    setMensaje('');
-
-    if (!password) {
-      setErrorPassword(
-        'Debes ingresar una contraseña.'
+      setMostrarConfirmacion(
+        false
       );
 
-      return;
-    }
+      setUsuarioConfirmacion(
+        null
+      );
+    };
 
-    if (password.length < 6) {
-      setErrorPassword(
-        'La contraseña debe tener al menos 6 caracteres.'
+  const confirmarCambioEstado =
+    async () => {
+      if (
+        !usuarioConfirmacion?.uid
+      ) {
+        setMostrarConfirmacion(
+          false
+        );
+
+        setErrorCarga(
+          'No se pudo identificar al usuario seleccionado.'
+        );
+
+        return;
+      }
+
+      const estaActivo =
+        usuarioConfirmacion
+          .estado ===
+        'activo';
+
+      const nuevoEstado =
+        estaActivo
+          ? 'inactivo'
+          : 'activo';
+
+      try {
+        setUsuarioProcesando(
+          usuarioConfirmacion.uid
+        );
+
+        setErrorCarga('');
+        setMensaje('');
+
+        await cambiarEstadoUsuario({
+          uid:
+            usuarioConfirmacion.uid,
+          estado:
+            nuevoEstado
+        });
+
+        const usuariosActualizados =
+          await cargarUsuarios();
+
+        setUsuarios(
+          usuariosActualizados
+        );
+
+        setMostrarConfirmacion(
+          false
+        );
+
+        setUsuarioConfirmacion(
+          null
+        );
+
+        setMensaje(
+          nuevoEstado ===
+            'activo'
+            ? 'El usuario fue activado correctamente.'
+            : 'El usuario fue desactivado correctamente.'
+        );
+      } catch (error) {
+        console.error(
+          'Error cambiando estado del usuario:',
+          error
+        );
+
+        setErrorCarga(
+          error.message ||
+            'No fue posible cambiar el estado del usuario.'
+        );
+      } finally {
+        setUsuarioProcesando(
+          null
+        );
+      }
+    };
+
+  const abrirPasswordModal =
+    (usuario) => {
+      if (
+        esAdminEmpresa &&
+        usuario.rol !==
+          'operador'
+      ) {
+        setErrorCarga(
+          'El administrador de empresa solo puede cambiar la contraseña de operadores.'
+        );
+
+        return;
+      }
+
+      if (
+        esAdminEmpresa &&
+        usuario.empresaId !==
+          perfil?.empresaId
+      ) {
+        setErrorCarga(
+          'No puedes administrar usuarios de otra empresa.'
+        );
+
+        return;
+      }
+
+      setUsuarioPassword(
+        usuario
       );
 
-      return;
-    }
+      setErrorPassword('');
+      setMensaje('');
+      setErrorCarga('');
 
-    if (password !== confirmacion) {
-      setErrorPassword(
-        'Las contraseñas no coinciden.'
+      setMostrarPasswordModal(
+        true
+      );
+    };
+
+  const cerrarPasswordModal =
+    () => {
+      if (usuarioProcesando) {
+        return;
+      }
+
+      setMostrarPasswordModal(
+        false
       );
 
-      return;
-    }
-
-    if (!usuarioPassword?.uid) {
-      setErrorPassword(
-        'No se pudo identificar al usuario seleccionado.'
+      setUsuarioPassword(
+        null
       );
 
-      return;
-    }
+      setErrorPassword('');
+    };
 
-    try {
-      setUsuarioProcesando(
-        usuarioPassword.uid
-      );
+  const guardarPassword =
+    async ({
+      password,
+      confirmacion
+    }) => {
+      setErrorPassword('');
+      setMensaje('');
 
-      await cambiarPasswordTemporal({
-        uid: usuarioPassword.uid,
-        password
-      });
+      if (!password) {
+        setErrorPassword(
+          'Debes ingresar una contraseña.'
+        );
 
-      setMostrarPasswordModal(false);
-      setUsuarioPassword(null);
+        return;
+      }
 
-      setMensaje(
-        'La contraseña fue actualizada correctamente.'
-      );
-    } catch (error) {
-      console.error(
-        'Error cambiando contraseña:',
-        error
-      );
+      if (
+        password.length < 6
+      ) {
+        setErrorPassword(
+          'La contraseña debe tener al menos 6 caracteres.'
+        );
 
-      setErrorPassword(
-        error.message ||
-          'No fue posible cambiar la contraseña.'
-      );
-    } finally {
-      setUsuarioProcesando(null);
-    }
-  };
+        return;
+      }
+
+      if (
+        password !==
+        confirmacion
+      ) {
+        setErrorPassword(
+          'Las contraseñas no coinciden.'
+        );
+
+        return;
+      }
+
+      if (
+        !usuarioPassword?.uid
+      ) {
+        setErrorPassword(
+          'No se pudo identificar al usuario seleccionado.'
+        );
+
+        return;
+      }
+
+      try {
+        setUsuarioProcesando(
+          usuarioPassword.uid
+        );
+
+        await cambiarPasswordTemporal({
+          uid:
+            usuarioPassword.uid,
+          password
+        });
+
+        setMostrarPasswordModal(
+          false
+        );
+
+        setUsuarioPassword(
+          null
+        );
+
+        setMensaje(
+          'La contraseña fue actualizada correctamente.'
+        );
+      } catch (error) {
+        console.error(
+          'Error cambiando contraseña:',
+          error
+        );
+
+        setErrorPassword(
+          error.message ||
+            'No fue posible cambiar la contraseña.'
+        );
+      } finally {
+        setUsuarioProcesando(
+          null
+        );
+      }
+    };
 
   const volver = () => {
+    if (esAdminEmpresa) {
+      navigate(
+        '/dashboard'
+      );
+
+      return;
+    }
+
     if (empresaSeleccionada) {
       navigate(
         '/admin/empresas'
@@ -594,6 +1020,12 @@ function UsuariosPage() {
     usuarioConfirmacion?.estado ===
     'activo';
 
+  const empresaBloqueada =
+    esAdminEmpresa ||
+    Boolean(
+      empresaParametro
+    );
+
   return (
     <div className="admin-page">
       <header className="admin-cabecera">
@@ -613,17 +1045,27 @@ function UsuariosPage() {
           </h1>
 
           <p>
-            {empresaSeleccionada
-              ? `Administrar los usuarios asociados a ${nombreEmpresa}.`
-              : 'Crear y administrar los usuarios registrados en el sistema.'}
+            {esAdminEmpresa
+              ? `Administrar los operadores asociados a ${nombreEmpresa}.`
+              : empresaSeleccionada
+                ? `Administrar los usuarios asociados a ${nombreEmpresa}.`
+                : 'Crear y administrar los usuarios registrados en el sistema.'}
           </p>
         </div>
 
         <button
           type="button"
           className="boton-nueva-empresa"
-          onClick={abrirFormularioCrear}
-          disabled={cargando}
+          onClick={
+            abrirFormularioCrear
+          }
+          disabled={
+            cargando ||
+            (
+              esAdminEmpresa &&
+              !perfil?.empresaId
+            )
+          }
         >
           Nuevo usuario
         </button>
@@ -648,37 +1090,46 @@ function UsuariosPage() {
           />
         </div>
 
-        {!empresaSeleccionada && (
-          <div className="campo-formulario">
-            <label htmlFor="filtro-empresa">
-              Empresa
-            </label>
+        {!empresaSeleccionada &&
+          esSuperadmin && (
+            <div className="campo-formulario">
+              <label htmlFor="filtro-empresa">
+                Empresa
+              </label>
 
-            <select
-              id="filtro-empresa"
-              value={filtroEmpresa}
-              onChange={(event) =>
-                setFiltroEmpresa(
-                  event.target.value
-                )
-              }
-            >
-              <option value="">
-                Todas
-              </option>
-
-              {empresas.map((empresa) => (
-                <option
-                  key={empresa.id}
-                  value={empresa.id}
-                >
-                  {empresa.nombre ||
-                    empresa.id}
+              <select
+                id="filtro-empresa"
+                value={
+                  filtroEmpresa
+                }
+                onChange={(event) =>
+                  setFiltroEmpresa(
+                    event.target.value
+                  )
+                }
+              >
+                <option value="">
+                  Todas
                 </option>
-              ))}
-            </select>
-          </div>
-        )}
+
+                {empresas.map(
+                  (empresa) => (
+                    <option
+                      key={
+                        empresa.id
+                      }
+                      value={
+                        empresa.id
+                      }
+                    >
+                      {empresa.nombre ||
+                        empresa.id}
+                    </option>
+                  )
+                )}
+              </select>
+            </div>
+          )}
 
         <div className="campo-formulario">
           <label htmlFor="filtro-rol">
@@ -698,13 +1149,17 @@ function UsuariosPage() {
               Todos
             </option>
 
-            <option value="superadmin">
-              Administrador global
-            </option>
+            {esSuperadmin && (
+              <option value="superadmin">
+                Administrador global
+              </option>
+            )}
 
-            <option value="admin_empresa">
-              Administrador de empresa
-            </option>
+            {esSuperadmin && (
+              <option value="admin_empresa">
+                Administrador de empresa
+              </option>
+            )}
 
             <option value="operador">
               Operador
@@ -719,7 +1174,9 @@ function UsuariosPage() {
 
           <select
             id="filtro-estado"
-            value={filtroEstado}
+            value={
+              filtroEstado
+            }
             onChange={(event) =>
               setFiltroEstado(
                 event.target.value
@@ -773,53 +1230,78 @@ function UsuariosPage() {
         <UsuarioTable
           usuarios={usuariosFiltrados}
           empresas={empresas}
-          onEditar={
-            abrirFormularioEditar
-          }
-          onCambiarEstado={
-            abrirConfirmacionEstado
-          }
-          onCambiarPassword={
-            abrirPasswordModal
-          }
-          usuarioProcesando={
-            usuarioProcesando
-          }
+          usuarioActualUid={perfil?.uid}
+          rolActual={perfil?.rol}
+          onEditar={abrirFormularioEditar}
+          onCambiarEstado={abrirConfirmacionEstado}
+          onCambiarPassword={abrirPasswordModal}
+          usuarioProcesando={usuarioProcesando}
         />
       )}
 
       <UsuarioModal
-        visible={mostrarFormulario}
-        modo={modoFormulario}
-        formulario={formulario}
-        empresas={empresas}
-        guardando={guardando}
-        empresaBloqueada={
-          Boolean(
-            empresaSeleccionada
-          )
+        visible={
+          mostrarFormulario
         }
-        error={errorFormulario}
-        onChange={actualizarCampo}
-        onSubmit={guardarUsuario}
-        onCerrar={cerrarFormulario}
+        modo={
+          modoFormulario
+        }
+        formulario={
+          formulario
+        }
+        empresas={
+          empresas
+        }
+        guardando={
+          guardando
+        }
+        empresaBloqueada={
+          empresaBloqueada
+        }
+        esAdminEmpresa={
+          esAdminEmpresa
+        }
+        error={
+          errorFormulario
+        }
+        onChange={
+          actualizarCampo
+        }
+        onSubmit={
+          guardarUsuario
+        }
+        onCerrar={
+          cerrarFormulario
+        }
       />
 
       <PasswordModal
-        visible={mostrarPasswordModal}
-        usuario={usuarioPassword}
+        visible={
+          mostrarPasswordModal
+        }
+        usuario={
+          usuarioPassword
+        }
         guardando={
           Boolean(
             usuarioProcesando
           )
         }
-        error={errorPassword}
-        onSubmit={guardarPassword}
-        onCerrar={cerrarPasswordModal}
+        error={
+          errorPassword
+        }
+        onSubmit={
+          guardarPassword
+        }
+        onCerrar={
+          cerrarPasswordModal
+        }
       />
 
       <ConfirmacionModal
-        visible={mostrarConfirmacion}
+        visible={
+          mostrarConfirmacion
+        }
         titulo={
           confirmacionEsDesactivacion
             ? 'Desactivar usuario'

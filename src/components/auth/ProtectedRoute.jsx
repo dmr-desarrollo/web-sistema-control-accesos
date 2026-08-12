@@ -44,7 +44,7 @@ function ProtectedRoute({
   if (perfil.estado !== 'activo') {
     return (
       <div className="dashboard-estado dashboard-error">
-        <h2>Cuenta deshabilitada</h2>
+        <h2>Cuenta deshabilitada</h2> 
 
         <p>
           Comunícate con un administrador para
