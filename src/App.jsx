@@ -39,7 +39,7 @@ function App() {
           }
         />
 
-        {/* Panel global del superadministrador */}
+        {/* Superadministrador */}
 
         <Route
           path="/admin"
@@ -67,21 +67,20 @@ function App() {
           }
         />
 
-            <Route
-              path="/admin/usuarios"
-              element={
-                <ProtectedRoute
-                  allowedRoles={[
-                    'superadmin',
-                    'admin_empresa'
-                  ]}
-                >
-                  <UsuariosPage />
-                </ProtectedRoute>
-              }
-            />
+        <Route
+          path="/admin/usuarios"
+          element={
+            <ProtectedRoute
+              allowedRoles={[
+                'superadmin'
+              ]}
+            >
+              <UsuariosPage />
+            </ProtectedRoute>
+          }
+        />
 
-        {/* Área operativa de cada empresa */}
+        {/* Área operativa */}
 
         <Route
           path="/dashboard"
@@ -94,21 +93,6 @@ function App() {
             >
               <Layout>
                 <Dashboard />
-              </Layout>
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/visitables"
-          element={
-            <ProtectedRoute
-              allowedRoles={[
-                'admin_empresa'
-              ]}
-            >
-              <Layout>
-                <VisitablesPage />
               </Layout>
             </ProtectedRoute>
           }
@@ -131,6 +115,38 @@ function App() {
         />
 
         <Route
+          path="/visitables"
+          element={
+            <ProtectedRoute
+              allowedRoles={[
+                'admin_empresa'
+              ]}
+            >
+              <Layout>
+                <VisitablesPage />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/empresa/usuarios"
+          element={
+            <ProtectedRoute
+              allowedRoles={[
+                'admin_empresa'
+              ]}
+            >
+              <Layout>
+                <UsuariosEmpresaPage />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Registro pendiente */}
+
+        <Route
           path="/registro"
           element={
             <div className="login-container">
@@ -147,6 +163,8 @@ function App() {
             </div>
           }
         />
+
+        {/* Rutas generales */}
 
         <Route
           path="/"
@@ -167,24 +185,6 @@ function App() {
             />
           }
         />
-
-        <Route
-          path="/empresa/usuarios"
-          element={
-            <ProtectedRoute
-              allowedRoles={[
-                'admin_empresa'
-              ]}
-            >
-              <Layout>
-                <UsuariosEmpresaPage />
-              </Layout>
-            </ProtectedRoute>
-          }
-        />
-
-
-        
       </Routes>
     </BrowserRouter>
   );

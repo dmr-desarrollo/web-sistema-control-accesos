@@ -4,7 +4,6 @@ import {
   doc,
   getDoc,
   getDocs,
-  orderBy,
   query,
   serverTimestamp,
   updateDoc,
@@ -65,6 +64,9 @@ const validarDatosVisitable = ({
   };
 };
 
+/**
+ * Crea una persona visitable.
+ */
 export const crearPersonaVisitable =
   async ({
     empresaId,
@@ -113,7 +115,10 @@ export const crearPersonaVisitable =
     }
   };
 
-
+/**
+ * Obtiene las personas visitables
+ * de una empresa.
+ */
 export const obtenerPersonasVisitables =
   async ({
     empresaId,
@@ -125,12 +130,6 @@ export const obtenerPersonasVisitables =
           empresaId
         );
 
-      /*
-       * Solo filtramos por empresa.
-       *
-       * Evitamos orderBy y filtros adicionales
-       * para no requerir índices compuestos.
-       */
       const consulta = query(
         collection(
           db,
@@ -144,7 +143,9 @@ export const obtenerPersonasVisitables =
       );
 
       const resultado =
-        await getDocs(consulta);
+        await getDocs(
+          consulta
+        );
 
       let personas =
         resultado.docs.map(
@@ -163,9 +164,6 @@ export const obtenerPersonasVisitables =
           );
       }
 
-      /*
-       * Ordenamos localmente.
-       */
       personas.sort(
         (
           personaA,
@@ -191,7 +189,10 @@ export const obtenerPersonasVisitables =
     }
   };
 
-
+/**
+ * Obtiene una persona visitable
+ * concreta y valida su empresa.
+ */
 export const obtenerPersonaVisitablePorId =
   async ({
     id,
@@ -254,6 +255,9 @@ export const obtenerPersonaVisitablePorId =
     }
   };
 
+/**
+ * Actualiza una persona visitable.
+ */
 export const actualizarPersonaVisitable =
   async ({
     id,
@@ -305,6 +309,9 @@ export const actualizarPersonaVisitable =
     }
   };
 
+/**
+ * Activa o desactiva una persona visitable.
+ */
 export const cambiarEstadoPersonaVisitable =
   async ({
     id,
@@ -357,3 +364,4 @@ export const cambiarEstadoPersonaVisitable =
       );
     }
   };
+  

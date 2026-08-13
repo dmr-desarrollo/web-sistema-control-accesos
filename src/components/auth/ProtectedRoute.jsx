@@ -1,5 +1,10 @@
-import { Navigate } from 'react-router-dom';
-import { useAuth } from '../../hooks/useAuth';
+import {
+  Navigate
+} from 'react-router-dom';
+
+import {
+  useAuth
+} from '../../hooks/useAuth';
 
 function ProtectedRoute({
   children,
@@ -12,6 +17,11 @@ function ProtectedRoute({
     errorPerfil
   } = useAuth();
 
+  /*
+   * Esto debería aparecer únicamente
+   * durante la carga inicial de la aplicación,
+   * no en cada navegación.
+   */
   if (loading) {
     return (
       <div className="dashboard-estado">
@@ -21,13 +31,23 @@ function ProtectedRoute({
   }
 
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return (
+      <Navigate
+        to="/login"
+        replace
+      />
+    );
   }
 
-  if (errorPerfil || !perfil) {
+  if (
+    errorPerfil ||
+    !perfil
+  ) {
     return (
       <div className="dashboard-estado dashboard-error">
-        <h2>No se pudo cargar el perfil</h2>
+        <h2>
+          No se pudo cargar el perfil
+        </h2>
 
         <p>
           {errorPerfil ||
@@ -37,18 +57,31 @@ function ProtectedRoute({
     );
   }
 
-  if (perfil.estado === 'pendiente') {
-    return <Navigate to="/pendiente" replace />;
+  if (
+    perfil.estado ===
+    'pendiente'
+  ) {
+    return (
+      <Navigate
+        to="/pendiente"
+        replace
+      />
+    );
   }
 
-  if (perfil.estado !== 'activo') {
+  if (
+    perfil.estado !==
+    'activo'
+  ) {
     return (
       <div className="dashboard-estado dashboard-error">
-        <h2>Cuenta deshabilitada</h2> 
+        <h2>
+          Cuenta deshabilitada
+        </h2>
 
         <p>
-          Comunícate con un administrador para
-          revisar el estado de tu cuenta.
+          Comunícate con un administrador
+          para revisar el estado de tu cuenta.
         </p>
       </div>
     );
@@ -56,13 +89,28 @@ function ProtectedRoute({
 
   if (
     allowedRoles.length > 0 &&
-    !allowedRoles.includes(perfil.rol)
+    !allowedRoles.includes(
+      perfil.rol
+    )
   ) {
-    if (perfil.rol === 'superadmin') {
-      return <Navigate to="/admin" replace />;
+    if (
+      perfil.rol ===
+      'superadmin'
+    ) {
+      return (
+        <Navigate
+          to="/admin"
+          replace
+        />
+      );
     }
 
-    return <Navigate to="/dashboard" replace />;
+    return (
+      <Navigate
+        to="/dashboard"
+        replace
+      />
+    );
   }
 
   return children;
