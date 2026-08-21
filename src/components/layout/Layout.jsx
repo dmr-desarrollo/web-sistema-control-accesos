@@ -54,6 +54,34 @@ function Layout({ children }) {
   const esAdminEmpresa =
     perfil?.rol === 'admin_empresa';
 
+  const obtenerCargo = () => {
+    switch (perfil?.rol) {
+      case 'superadmin':
+        return 'Administrador global';
+
+      case 'admin_empresa':
+        return 'Administrador de empresa';
+
+      case 'operador':
+        return 'Operador';
+
+      default:
+        return 'Usuario';
+    }
+  };
+
+  const nombreCompleto = [
+    perfil?.nombre,
+    perfil?.apellido
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  const nombreVisible =
+    nombreCompleto ||
+    user?.email ||
+    'Usuario';
+
   return (
     <div className="layout">
       <nav className="navbar">
@@ -78,6 +106,7 @@ function Layout({ children }) {
 
           {menuAbierto && (
             <div className="submenu-control-visitas">
+
               <Link
                 to="/dashboard"
                 className={
@@ -104,20 +133,6 @@ function Layout({ children }) {
 
               {esAdminEmpresa && (
                 <Link
-                  to="/visitables"
-                  className={
-                    isActive('/visitables')
-                      ? 'submenu-activo'
-                      : ''
-                  }
-                  onClick={cerrarMenu}
-                >
-                  Personas visitables
-                </Link>
-              )}
-
-              {esAdminEmpresa && (
-                <Link
                   to="/empresa/usuarios"
                   className={
                     isActive(
@@ -131,26 +146,26 @@ function Layout({ children }) {
                   Usuarios de la empresa
                 </Link>
               )}
+
             </div>
           )}
         </div>
 
         <div className="navbar-user">
-          <div>
-            <span>
+          <div className="navbar-identidad">
+            <span className="navbar-bienvenida">
               Bienvenido,{' '}
               <strong>
-                {perfil?.nombre ||
-                  user?.email}
+                {nombreVisible}
               </strong>
             </span>
 
-            <small>
-              {perfil?.rol ===
-              'admin_empresa'
-                ? 'Administrador de empresa'
-                : 'Operador'}
-            </small>
+            <span className="navbar-cargo">
+              Cargo:{' '}
+              <strong>
+                {obtenerCargo()}
+              </strong>
+            </span>
           </div>
 
           <button

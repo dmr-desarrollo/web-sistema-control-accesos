@@ -1,6 +1,6 @@
-import { Navigate } from 'react-router-dom';
-
 import { useAuth } from '../../hooks/useAuth';
+
+import UsuariosPage from '../admin/UsuariosPage';
 
 function UsuariosEmpresaPage() {
   const { perfil } = useAuth();
@@ -25,14 +25,7 @@ function UsuariosEmpresaPage() {
     );
   }
 
-  return (
-    <Navigate
-      to={`/admin/usuarios?empresa=${encodeURIComponent(
-        empresaId
-      )}`}
-      replace
-    />
-  );
+  return <UsuariosPage />;
 }
 
 export default UsuariosEmpresaPage;

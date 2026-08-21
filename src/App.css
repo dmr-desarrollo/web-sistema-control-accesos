@@ -1369,3 +1369,163 @@ button {
   font-weight: 600;
 }
 
+/* =========================================================
+   Mejoras visuales generales - feedback de botones
+   ========================================================= */
+
+button {
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.12s ease,
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    opacity 0.2s ease;
+}
+
+button:not(:disabled) {
+  box-shadow:
+    0 2px 5px rgba(15, 23, 42, 0.14);
+}
+
+button:hover:not(:disabled) {
+  box-shadow:
+    0 5px 12px rgba(15, 23, 42, 0.18);
+  transform: translateY(-1px);
+}
+
+button:active:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.18);
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+  box-shadow: none;
+  transform: none;
+}
+
+
+/* =========================================================
+   Usuario conectado
+   ========================================================= */
+
+.navbar-identidad {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  line-height: 1.25;
+}
+
+.navbar-bienvenida,
+.navbar-cargo {
+  display: block;
+  font-size: 14px;
+}
+
+.navbar-bienvenida {
+  color: var(--text-muted);
+}
+
+.navbar-bienvenida strong {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.navbar-cargo {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.navbar-cargo strong {
+  color: var(--primary);
+  font-weight: 700;
+}
+
+
+/* =========================================================
+   Historial - botones
+   ========================================================= */
+
+.historial-botones {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.boton-actualizar-historial {
+  min-width: 120px;
+  padding: 10px 18px;
+  background: var(--primary) !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: 7px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.boton-actualizar-historial:hover:not(:disabled) {
+  background: var(--primary-hover) !important;
+}
+
+.boton-exportar {
+  min-width: 145px;
+  padding: 10px 18px;
+  background: var(--success) !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: 7px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.boton-exportar:hover:not(:disabled) {
+  background: #15803d !important;
+}
+
+.boton-exportar.boton-exportando,
+.boton-exportar:disabled {
+  background: #94a3b8 !important;
+  color: #ffffff !important;
+}
+
+
+/* =========================================================
+   Cuenta administradora protegida
+   ========================================================= */
+
+.usuario-protegido {
+  cursor: default;
+}
+
+
+/* =========================================================
+   Responsive de identidad e historial
+   ========================================================= */
+
+@media (max-width: 800px) {
+  .navbar-identidad {
+    align-items: flex-start;
+  }
+
+  .historial-botones {
+    width: 100%;
+  }
+
+  .historial-botones button {
+    flex: 1;
+  }
+}
+
+@media (max-width: 600px) {
+  .historial-botones {
+    flex-direction: column;
+  }
+
+  .historial-botones button {
+    width: 100%;
+  }
+}
+

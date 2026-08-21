@@ -9,7 +9,6 @@ import AdminPage from './pages/AdminPage';
 import Dashboard from './pages/Dashboard';
 import LoginPage from './pages/LoginPage';
 import PendingApprovalPage from './pages/PendingApprovalPage';
-import VisitablesPage from './pages/VisitablesPage';
 import VisitasPage from './pages/VisitasPage';
 
 import EmpresasPage from './pages/admin/EmpresasPage';
@@ -25,6 +24,7 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
+
         <Route
           path="/login"
           element={<LoginPage />}
@@ -39,7 +39,9 @@ function App() {
           }
         />
 
-        {/* Superadministrador */}
+        {/* =========================
+            SUPERADMINISTRADOR
+           ========================= */}
 
         <Route
           path="/admin"
@@ -80,7 +82,9 @@ function App() {
           }
         />
 
-        {/* Área operativa */}
+        {/* =========================
+            ÁREA OPERATIVA
+           ========================= */}
 
         <Route
           path="/dashboard"
@@ -114,20 +118,9 @@ function App() {
           }
         />
 
-        <Route
-          path="/visitables"
-          element={
-            <ProtectedRoute
-              allowedRoles={[
-                'admin_empresa'
-              ]}
-            >
-              <Layout>
-                <VisitablesPage />
-              </Layout>
-            </ProtectedRoute>
-          }
-        />
+        {/* =========================
+            USUARIOS DE LA EMPRESA
+           ========================= */}
 
         <Route
           path="/empresa/usuarios"
@@ -144,7 +137,9 @@ function App() {
           }
         />
 
-        {/* Registro pendiente */}
+        {/* =========================
+            REGISTRO PENDIENTE
+           ========================= */}
 
         <Route
           path="/registro"
@@ -164,7 +159,9 @@ function App() {
           }
         />
 
-        {/* Rutas generales */}
+        {/* =========================
+            RUTAS GENERALES
+           ========================= */}
 
         <Route
           path="/"
@@ -185,6 +182,7 @@ function App() {
             />
           }
         />
+
       </Routes>
     </BrowserRouter>
   );

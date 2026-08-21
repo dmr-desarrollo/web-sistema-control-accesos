@@ -21,6 +21,9 @@ function HistorialVisitas() {
   const [cargando, setCargando] =
     useState(true);
 
+  const [exportando, setExportando] =
+    useState(false);
+
   const [error, setError] =
     useState('');
 
@@ -126,101 +129,123 @@ function HistorialVisitas() {
     );
   };
 
-  const exportarXLS = () => {
-    if (visitas.length === 0) {
-      alert(
-        'No hay visitas para exportar.'
-      );
-
+  const exportarXLS = async () => {
+    if (
+      visitas.length === 0 ||
+      exportando
+    ) {
       return;
     }
 
-    const datosExcel =
-      visitas.map((visita) => ({
-        Fecha:
-          formatearFecha(
-            visita.fecha
-          ),
+    try {
+      setExportando(true);
 
-        Visitante: [
-          visita.visitanteNombre,
-          visita.visitanteApellido
-        ]
-          .filter(Boolean)
-          .join(' '),
-
-        Cédula:
-          visita.visitanteCedula ||
-          '',
-
-        Empresa:
-          obtenerNombreEmpresa(
-            visita
-          ),
-
-        'Persona visitada':
-          visita
-            .personaVisitableNombre ||
-          '',
-
-        Motivo:
-          visita.motivo || '',
-
-        Origen:
-          visita.origen || 'web'
-      }));
-
-    const hoja =
-      utils.json_to_sheet(
-        datosExcel
+      /*
+       * Permitimos que React actualice visualmente
+       * el botón antes de iniciar la generación.
+       */
+      await new Promise((resolve) =>
+        setTimeout(resolve, 50)
       );
 
-    hoja['!cols'] = [
-      { wch: 22 },
-      { wch: 35 },
-      { wch: 18 },
-      { wch: 28 },
-      { wch: 35 },
-      { wch: 30 },
-      { wch: 14 }
-    ];
+      const datosExcel =
+        visitas.map((visita) => ({
+          Fecha:
+            formatearFecha(
+              visita.fecha
+            ),
 
-    hoja['!autofilter'] = {
-      ref:
-        `A1:G${
-          datosExcel.length + 1
-        }`
-    };
+          Visitante: [
+            visita.visitanteNombre,
+            visita.visitanteApellido
+          ]
+            .filter(Boolean)
+            .join(' '),
 
-    const libro =
-      utils.book_new();
+          Cédula:
+            visita.visitanteCedula ||
+            '',
 
-    utils.book_append_sheet(
-      libro,
-      hoja,
-      'Historial'
-    );
+          Empresa:
+            obtenerNombreEmpresa(
+              visita
+            ),
 
-    const fechaArchivo =
-      new Date()
-        .toISOString()
-        .slice(0, 10);
+          'Persona visitada':
+            visita
+              .personaVisitableNombre ||
+            '',
 
-    const empresaArchivo =
-      String(
-        perfil?.empresaId ||
-        'empresa'
-      )
-        .trim()
-        .replace(
-          /[^a-zA-Z0-9-_]+/g,
-          '-'
+          Motivo:
+            visita.motivo || '',
+
+          Origen:
+            visita.origen || 'web'
+        }));
+
+      const hoja =
+        utils.json_to_sheet(
+          datosExcel
         );
 
-    writeFileXLSX(
-      libro,
-      `historial_visitas_${empresaArchivo}_${fechaArchivo}.xlsx`
-    );
+      hoja['!cols'] = [
+        { wch: 22 },
+        { wch: 35 },
+        { wch: 18 },
+        { wch: 28 },
+        { wch: 35 },
+        { wch: 30 },
+        { wch: 14 }
+      ];
+
+      hoja['!autofilter'] = {
+        ref:
+          `A1:G${
+            datosExcel.length + 1
+          }`
+      };
+
+      const libro =
+        utils.book_new();
+
+      utils.book_append_sheet(
+        libro,
+        hoja,
+        'Historial'
+      );
+
+      const fechaArchivo =
+        new Date()
+          .toISOString()
+          .slice(0, 10);
+
+      const empresaArchivo =
+        String(
+          perfil?.empresaId ||
+          'empresa'
+        )
+          .trim()
+          .replace(
+            /[^a-zA-Z0-9-_]+/g,
+            '-'
+          );
+
+      writeFileXLSX(
+        libro,
+        `historial_visitas_${empresaArchivo}_${fechaArchivo}.xlsx`
+      );
+    } catch (err) {
+      console.error(
+        'Error exportando historial:',
+        err
+      );
+
+      alert(
+        'No fue posible exportar el historial.'
+      );
+    } finally {
+      setExportando(false);
+    }
   };
 
   const nombreEmpresa =
@@ -266,23 +291,35 @@ function HistorialVisitas() {
           </p>
         </div>
 
-        <div className="botones">
+        <div className="botones historial-botones">
           <button
             type="button"
+            className="boton-actualizar-historial"
             onClick={cargarVisitas}
+            disabled={cargando || exportando}
           >
-            Actualizar
+            {cargando
+              ? 'Actualizando...'
+              : 'Actualizar'}
           </button>
 
           <button
             type="button"
-            className="boton-exportar"
+            className={
+              exportando
+                ? 'boton-exportar boton-exportando'
+                : 'boton-exportar'
+            }
             onClick={exportarXLS}
             disabled={
-              visitas.length === 0
+              visitas.length === 0 ||
+              exportando ||
+              cargando
             }
           >
-            Exportar XLSX
+            {exportando
+              ? 'Exportando...'
+              : 'Exportar XLSX'}
           </button>
         </div>
       </div>

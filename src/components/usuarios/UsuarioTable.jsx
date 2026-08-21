@@ -74,9 +74,13 @@ function UsuarioTable({
             const esPropioUsuario =
               usuario.uid === usuarioActualUid;
 
-            const esAdminEmpresaPropio =
+            const esCuentaAdministradoraPropia =
               esPropioUsuario &&
               rolActual === 'admin_empresa';
+
+            const protegido =
+              esSuperadmin ||
+              esCuentaAdministradoraPropia;
 
             const procesando =
               usuarioProcesando ===
@@ -127,9 +131,11 @@ function UsuarioTable({
 
                 <td>
                   <div className="acciones-usuario">
-                    {esSuperadmin ? (
+                    {protegido ? (
                       <span className="usuario-protegido">
-                        Protegido
+                        {esCuentaAdministradoraPropia
+                          ? 'Cuenta administradora'
+                          : 'Protegido'}
                       </span>
                     ) : (
                       <>
@@ -155,23 +161,21 @@ function UsuarioTable({
                           Contraseña
                         </button>
 
-                        {!esAdminEmpresaPropio && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              onCambiarEstado(
-                                usuario
-                              )
-                            }
-                            disabled={procesando}
-                          >
-                            {procesando
-                              ? 'Procesando...'
-                              : estaActivo
-                                ? 'Desactivar'
-                                : 'Activar'}
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            onCambiarEstado(
+                              usuario
+                            )
+                          }
+                          disabled={procesando}
+                        >
+                          {procesando
+                            ? 'Procesando...'
+                            : estaActivo
+                              ? 'Desactivar'
+                              : 'Activar'}
+                        </button>
                       </>
                     )}
                   </div>
