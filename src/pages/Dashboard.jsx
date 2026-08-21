@@ -21,6 +21,7 @@ import {
 
 import { useAuth } from '../hooks/useAuth';
 import { obtenerVisitas } from '../services/visitas';
+import { listarUsuarios } from '../services/usuarios';
 
 const COLORES_TORTA = [
   '#2563eb',
@@ -72,10 +73,32 @@ const renderNumeroDentroTorta = ({
 };
 
 function Dashboard() {
-  const { perfil } = useAuth();
+  const {
+    user,
+    perfil
+  } = useAuth();
 
   const [visitas, setVisitas] =
     useState([]);
+
+  const [usuariosEmpresa, setUsuariosEmpresa] =
+    useState([]);
+
+  const [usuarioFiltro, setUsuarioFiltro] =
+    useState('');
+
+  const esAdminEmpresa =
+    perfil?.rol === 'admin_empresa';
+
+  const esOperador =
+    perfil?.rol === 'operador';
+
+  const uidActual =
+    String(
+      perfil?.uid ||
+      user?.uid ||
+      ''
+    ).trim();
 
   /*
    * Fechas seleccionadas por el usuario.
@@ -111,8 +134,14 @@ function Dashboard() {
     useState('');
 
   /*
-   * Obtiene solamente las visitas asociadas
-   * a la empresa del usuario conectado.
+   * Carga datos según el rol:
+   *
+   * operador:
+   * - solamente sus propias visitas.
+   *
+   * admin_empresa:
+   * - todas las visitas de su empresa;
+   * - usuarios de la empresa para filtrar.
    */
   const cargarDatos = useCallback(async () => {
     const empresaId =
@@ -122,9 +151,24 @@ function Dashboard() {
 
     if (!empresaId) {
       setVisitas([]);
+      setUsuariosEmpresa([]);
 
       setError(
         'El usuario no tiene una empresa asignada.'
+      );
+
+      setCargando(false);
+      return;
+    }
+
+    if (
+      esOperador &&
+      !uidActual
+    ) {
+      setVisitas([]);
+
+      setError(
+        'No se pudo identificar al usuario conectado.'
       );
 
       setCargando(false);
@@ -135,12 +179,34 @@ function Dashboard() {
       setCargando(true);
       setError('');
 
-      const datos =
-        await obtenerVisitas({
-          empresaId
+      const promesaVisitas =
+        obtenerVisitas({
+          empresaId,
+          creadoPorUid:
+            esOperador
+              ? uidActual
+              : ''
         });
 
-      setVisitas(datos);
+      const promesaUsuarios =
+        esAdminEmpresa
+          ? listarUsuarios({
+              empresaId
+            })
+          : Promise.resolve([]);
+
+      const [
+        datosVisitas,
+        datosUsuarios
+      ] = await Promise.all([
+        promesaVisitas,
+        promesaUsuarios
+      ]);
+
+      setVisitas(datosVisitas);
+      setUsuariosEmpresa(
+        datosUsuarios
+      );
     } catch (err) {
       console.error(
         'Error cargando dashboard:',
@@ -155,7 +221,10 @@ function Dashboard() {
       setCargando(false);
     }
   }, [
-    perfil?.empresaId
+    perfil?.empresaId,
+    esAdminEmpresa,
+    esOperador,
+    uidActual
   ]);
 
   useEffect(() => {
@@ -239,6 +308,137 @@ function Dashboard() {
     );
   };
 
+  const mapaUsuarios =
+    useMemo(() => {
+      const mapa = {};
+
+      usuariosEmpresa.forEach(
+        (usuario) => {
+          const nombre = [
+            usuario.nombre,
+            usuario.apellido
+          ]
+            .filter(Boolean)
+            .join(' ')
+            .trim();
+
+          mapa[usuario.uid] =
+            nombre ||
+            usuario.email ||
+            usuario.uid;
+        }
+      );
+
+      visitas.forEach(
+        (visita) => {
+          const uid =
+            String(
+              visita.creadoPorUid || ''
+            ).trim();
+
+          if (
+            uid &&
+            !mapa[uid]
+          ) {
+            mapa[uid] =
+              `Usuario ${uid}`;
+          }
+        }
+      );
+
+      return mapa;
+    }, [
+      usuariosEmpresa,
+      visitas
+    ]);
+
+  const opcionesUsuarios =
+    useMemo(() => {
+      const uidsConVisitas =
+        new Set(
+          visitas
+            .map(
+              (visita) =>
+                String(
+                  visita.creadoPorUid || ''
+                ).trim()
+            )
+            .filter(Boolean)
+        );
+
+      return Object
+        .entries(mapaUsuarios)
+        .filter(
+          ([uid]) =>
+            uidsConVisitas.has(uid)
+        )
+        .map(
+          ([uid, nombre]) => ({
+            uid,
+            nombre
+          })
+        )
+        .sort(
+          (a, b) =>
+            a.nombre.localeCompare(
+              b.nombre,
+              'es'
+            )
+        );
+    }, [
+      visitas,
+      mapaUsuarios
+    ]);
+
+  const existeVisitaSinUsuario =
+    useMemo(
+      () =>
+        visitas.some(
+          (visita) =>
+            !String(
+              visita.creadoPorUid || ''
+            ).trim()
+        ),
+      [visitas]
+    );
+
+  const obtenerNombreRegistrador = (
+    visita
+  ) => {
+    const uid =
+      String(
+        visita.creadoPorUid || ''
+      ).trim();
+
+    if (!uid) {
+      return 'Sin usuario identificado';
+    }
+
+    if (mapaUsuarios[uid]) {
+      return mapaUsuarios[uid];
+    }
+
+    if (
+      uid === uidActual
+    ) {
+      const nombre = [
+        perfil?.nombre,
+        perfil?.apellido
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .trim();
+
+      return (
+        nombre ||
+        user?.email ||
+        'Usuario actual'
+      );
+    }
+
+    return uid;
+  };
+
   /*
    * Filtra las visitas utilizando las
    * fechas que fueron aplicadas.
@@ -281,13 +481,37 @@ function Dashboard() {
           return false;
         }
 
+        if (
+          esAdminEmpresa &&
+          usuarioFiltro
+        ) {
+          const uidVisita =
+            String(
+              visita.creadoPorUid || ''
+            ).trim();
+
+          if (
+            usuarioFiltro ===
+            '__sin_usuario__'
+          ) {
+            return !uidVisita;
+          }
+
+          return (
+            uidVisita ===
+            usuarioFiltro
+          );
+        }
+
         return true;
       }
     );
   }, [
     visitas,
     fechaDesdeAplicada,
-    fechaHastaAplicada
+    fechaHastaAplicada,
+    esAdminEmpresa,
+    usuarioFiltro
   ]);
 
   const agruparPorCampo = (
@@ -400,6 +624,45 @@ function Dashboard() {
       personasVisitadas
     ]);
 
+  const visitasPorUsuario =
+    useMemo(() => {
+      if (!esAdminEmpresa) {
+        return [];
+      }
+
+      const acumulado = {};
+
+      visitasFiltradas.forEach(
+        (visita) => {
+          const nombre =
+            obtenerNombreRegistrador(
+              visita
+            );
+
+          acumulado[nombre] =
+            (acumulado[nombre] || 0) +
+            1;
+        }
+      );
+
+      return Object
+        .entries(acumulado)
+        .map(
+          ([nombre, total]) => ({
+            nombre,
+            total
+          })
+        )
+        .sort(
+          (a, b) =>
+            b.total - a.total
+        );
+    }, [
+      visitasFiltradas,
+      esAdminEmpresa,
+      mapaUsuarios
+    ]);
+
   const visitasPorDia =
     useMemo(() => {
       const acumulado = {};
@@ -499,6 +762,7 @@ function Dashboard() {
     setFechaHastaSeleccionada('');
     setFechaDesdeAplicada('');
     setFechaHastaAplicada('');
+    setUsuarioFiltro('');
   };
 
   /*
@@ -660,6 +924,12 @@ function Dashboard() {
               {nombreEmpresa}
             </strong>
           </p>
+
+          {esOperador && (
+            <p>
+              Mostrando únicamente tus registros.
+            </p>
+          )}
         </div>
 
         <button
@@ -672,6 +942,44 @@ function Dashboard() {
       </div>
 
       <section className="dashboard-filtros">
+        {esAdminEmpresa && (
+          <div className="filtro-fecha">
+            <label htmlFor="filtro-usuario-dashboard">
+              Usuario que registró
+            </label>
+
+            <select
+              id="filtro-usuario-dashboard"
+              value={usuarioFiltro}
+              onChange={(event) =>
+                setUsuarioFiltro(
+                  event.target.value
+                )
+              }
+            >
+              <option value="">
+                Todos los usuarios
+              </option>
+
+              {opcionesUsuarios.map(
+                (usuario) => (
+                  <option
+                    key={usuario.uid}
+                    value={usuario.uid}
+                  >
+                    {usuario.nombre}
+                  </option>
+                )
+              )}
+
+              {existeVisitaSinUsuario && (
+                <option value="__sin_usuario__">
+                  Sin usuario identificado
+                </option>
+              )}
+            </select>
+          </div>
+        )}
         <div className="filtro-fecha">
           <label htmlFor="fecha-desde">
             Fecha inicial
@@ -937,6 +1245,61 @@ function Dashboard() {
               </ResponsiveContainer>
             </div>
           </article>
+
+          {esAdminEmpresa && (
+            <article className="grafico-card grafico-ancho">
+              <h2>
+                Visitas por usuario
+              </h2>
+
+              <div className="grafico-contenedor">
+                <ResponsiveContainer
+                  width="100%"
+                  height={340}
+                >
+                  <BarChart
+                    data={visitasPorUsuario}
+                    margin={{
+                      top: 20,
+                      right: 25,
+                      left: 0,
+                      bottom: 75
+                    }}
+                  >
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                    />
+
+                    <XAxis
+                      dataKey="nombre"
+                      angle={-35}
+                      textAnchor="end"
+                      interval={0}
+                      height={90}
+                    />
+
+                    <YAxis
+                      allowDecimals={false}
+                    />
+
+                    <Tooltip />
+
+                    <Bar
+                      dataKey="total"
+                      name="Visitas registradas"
+                      fill="#7c3aed"
+                      radius={[
+                        6,
+                        6,
+                        0,
+                        0
+                      ]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </article>
+          )}
 
           <article className="grafico-card">
             <h2>

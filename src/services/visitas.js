@@ -9,7 +9,10 @@ import {
   where
 } from 'firebase/firestore';
 
-import { db } from './firebase';
+import {
+  auth,
+  db
+} from './firebase';
 
 const COLLECTION_NAME =
   'visitas';
@@ -75,6 +78,13 @@ const obtenerMilisegundosFecha = (
   return resultado.getTime();
 };
 
+const normalizarUid = (
+  uid
+) =>
+  String(
+    uid || ''
+  ).trim();
+
 export const crearVisita =
   async ({
     empresaId,
@@ -94,6 +104,31 @@ export const crearVisita =
         validarEmpresaId(
           empresaId
         );
+
+      /*
+       * La visita siempre queda asociada
+       * al usuario autenticado.
+       *
+       * creadoPorUid recibido se conserva
+       * como compatibilidad, pero si existe
+       * una sesión Firebase usamos su UID.
+       */
+      const uidSesion =
+        normalizarUid(
+          auth.currentUser?.uid
+        );
+
+      const uidCreador =
+        uidSesion ||
+        normalizarUid(
+          creadoPorUid
+        );
+
+      if (!uidCreador) {
+        throw new Error(
+          'No se pudo identificar al usuario que registra la visita.'
+        );
+      }
 
       const referencia =
         await addDoc(
@@ -144,9 +179,7 @@ export const crearVisita =
               ).trim(),
 
             creadoPorUid:
-              String(
-                creadoPorUid || ''
-              ).trim(),
+              uidCreador,
 
             origen:
               origen === 'android'
@@ -168,7 +201,8 @@ export const crearVisita =
 
 export const obtenerVisitas =
   async ({
-    empresaId
+    empresaId,
+    creadoPorUid = ''
   }) => {
     try {
       const empresa =
@@ -176,16 +210,41 @@ export const obtenerVisitas =
           empresaId
         );
 
-      const consulta = query(
-        collection(
-          db,
-          COLLECTION_NAME
-        ),
+      const uid =
+        normalizarUid(
+          creadoPorUid
+        );
+
+      const restricciones = [
         where(
           'empresaId',
           '==',
           empresa
         )
+      ];
+
+      /*
+       * Para operadores se envía creadoPorUid.
+       * Esto es importante también para que
+       * las reglas de Firestore puedan validar
+       * la consulta sin exponer visitas ajenas.
+       */
+      if (uid) {
+        restricciones.push(
+          where(
+            'creadoPorUid',
+            '==',
+            uid
+          )
+        );
+      }
+
+      const consulta = query(
+        collection(
+          db,
+          COLLECTION_NAME
+        ),
+        ...restricciones
       );
 
       const resultado =
@@ -225,7 +284,8 @@ export const obtenerVisitas =
 export const obtenerVisitaPorId =
   async ({
     id,
-    empresaId
+    empresaId,
+    creadoPorUid = ''
   }) => {
     try {
       const visitaId =
@@ -236,6 +296,11 @@ export const obtenerVisitaPorId =
       const empresa =
         validarEmpresaId(
           empresaId
+        );
+
+      const uid =
+        normalizarUid(
+          creadoPorUid
         );
 
       if (!visitaId) {
@@ -273,6 +338,16 @@ export const obtenerVisitaPorId =
         );
       }
 
+      if (
+        uid &&
+        visita.creadoPorUid !==
+          uid
+      ) {
+        throw new Error(
+          'La visita no pertenece al usuario conectado.'
+        );
+      }
+
       return {
         id: resultado.id,
         ...visita
@@ -287,12 +362,14 @@ export const obtenerVisitaPorId =
 export const obtenerVisitasPorFecha =
   async ({
     empresaId,
-    fecha
+    fecha,
+    creadoPorUid = ''
   }) => {
     try {
       const visitas =
         await obtenerVisitas({
-          empresaId
+          empresaId,
+          creadoPorUid
         });
 
       if (!fecha) {
@@ -344,4 +421,3 @@ export const obtenerVisitasPorFecha =
       );
     }
   };
-  
